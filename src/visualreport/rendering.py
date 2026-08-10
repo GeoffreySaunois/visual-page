@@ -44,12 +44,30 @@ class IterationMode(StrEnum):
 
 
 @dataclass(frozen=True)
+class Refresh:
+    """Replaying a source the archive already holds, through today's templates.
+
+    `day` is the date the page was published at: it names the file and it is what
+    the header prints, in place of the date the front matter derives — an archived
+    source carries no explicit `date`, so a replay would otherwise be stamped
+    today and land beside the page instead of on it.
+
+    A refresh advances nothing about the document: the source stays archived as
+    it is, the iteration reference keeps pointing at the version last published,
+    and the comment threads keep the homes they have.
+    """
+
+    day: str
+
+
+@dataclass(frozen=True)
 class RenderRequest:
     source: Path
     kind: str
     output: Path | None
     iteration: IterationMode
     archive: Archive
+    refresh: Refresh | None
 
 
 @dataclass(frozen=True)
@@ -67,13 +85,15 @@ class RenderOutcome:
 
 def render(request: RenderRequest) -> RenderOutcome:
     meta, body = read_source(request.source)
+    meta = stamped(meta, request.refresh)
     blocks = split_blocks(body)
     page_path = resolve_output(request, meta)
     identity = document_id(request.kind, meta.slug)
+    advances = advances_document(request, page_path)
 
     iteration = resolve_iteration(request, identity, page_path, blocks)
     store = comments.store_for(request.archive, identity)
-    rehomed = rehome_threads(store, request.archive.holds(page_path), blocks)
+    rehomed = rehome_threads(store, advances, blocks)
 
     decorators = [address_blocks] if iteration is None else [iteration.decorator, address_blocks]
     assets = PageAssets()
@@ -96,7 +116,8 @@ def render(request: RenderRequest) -> RenderOutcome:
     )
     page_path.parent.mkdir(parents=True, exist_ok=True)
     page_path.write_text(page, encoding="utf-8")
-    archive_source(request, page_path, identity)
+    if advances:
+        archive_source(request, page_path, identity)
 
     return RenderOutcome(
         page=page_path,
@@ -105,6 +126,24 @@ def render(request: RenderRequest) -> RenderOutcome:
         changes=None if iteration is None else iteration.change_count,
         threads=rehomed,
     )
+
+
+def stamped(meta: ReportMeta, refresh: Refresh | None) -> ReportMeta:
+    """The date the page goes out under — the refreshed page's own, when there is
+    one, so a replay lands on the file it rebuilds."""
+    if refresh is None:
+        return meta
+    return meta.model_copy(update={"date": refresh.day})
+
+
+def advances_document(request: RenderRequest, page_path: Path) -> bool:
+    """Whether this render becomes the document's new state.
+
+    Two renders do not: a refresh rebuilds a page that is already published, and
+    a page written outside the archive (an explicit `-o`) is a one-off export.
+    Both read the document's threads and neither owns them.
+    """
+    return request.refresh is None and request.archive.holds(page_path)
 
 
 def resolve_output(request: RenderRequest, meta: ReportMeta) -> Path:
@@ -155,8 +194,10 @@ def rehome_threads(
 ) -> comments.RehomeReport | None:
     """Re-point the document's threads at the new blocks.
 
-    A page rendered outside the archive (an explicit `-o`) is a one-off export: it
-    still displays the threads, but never rewrites the store.
+    Only the render that publishes a new version moves them; a one-off export and
+    a refresh both display the threads without rewriting the store. A refresh
+    especially: it replays an old version, and re-homing threads on it would drag
+    the anchors backwards, away from the version they are aimed at.
     """
     if not persist or not store.path.exists():
         return None
@@ -167,8 +208,6 @@ def rehome_threads(
 def archive_source(request: RenderRequest, page_path: Path, identity: str) -> None:
     """Keep the source next to the page so it can be re-rendered later, and record
     it as the version the next iteration diff compares against."""
-    if not request.archive.holds(page_path):
-        return
     text = request.source.read_text(encoding="utf-8")
     target = request.archive.source_of(page_path)
     request.archive.sources.mkdir(parents=True, exist_ok=True)

@@ -65,6 +65,7 @@ def run_render(args: argparse.Namespace) -> None:
         output=Path(args.output) if args.output else None,
         iteration=iteration_mode(args),
         archive=archive,
+        refresh=None,
     )
     try:
         outcome = render(request)

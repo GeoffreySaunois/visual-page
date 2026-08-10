@@ -13,7 +13,12 @@ from visualreport.rendering import IterationMode, RenderRequest, render
 
 def request_for(source: Path, archive: Archive) -> RenderRequest:
     return RenderRequest(
-        source=source, kind="report", output=None, iteration=IterationMode.AUTO, archive=archive
+        source=source,
+        kind="report",
+        output=None,
+        iteration=IterationMode.AUTO,
+        archive=archive,
+        refresh=None,
     )
 
 
@@ -79,6 +84,7 @@ def test_a_page_rendered_outside_the_archive_never_touches_the_store(
             output=export,
             iteration=IterationMode.AUTO,
             archive=archive,
+            refresh=None,
         )
     )
     assert outcome.threads is None
