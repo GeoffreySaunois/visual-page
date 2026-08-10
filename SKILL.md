@@ -336,6 +336,35 @@ quoted words were rewritten is `dérivé` (its block is flagged in the margin, a
 the digest shows the *current* wording); a thread whose block disappeared is
 `orphelin`. Nothing is ever dropped for having lost its anchor.
 
+**Checking the phone rendering, headlessly.** The panel is a bottom sheet under
+720px, and that layout is verified locally through the **Playwright MCP** — no
+dependency is added to the package, the tooling lives in the session. Drive a
+*served* page (`visual-report status` prints the loopback address):
+
+1. `browser_resize` **390×844**, then `browser_navigate` to
+   `http://127.0.0.1:<port>/<page>.html`. After a re-render, append a
+   cache-buster (`?v=2`) — Chrome otherwise replays the previous file and you
+   review the old script. Re-`browser_resize` after any navigation hiccup: a
+   reset viewport silently puts you back on the desktop layout.
+2. The sidebar is off-screen on a phone, so the panel opens in two taps: click
+   `.menu-btn`, then `#comments-toggle`.
+3. What to look at — a thread is opened by a **selection only**: select a passage
+   and dispatch a `mouseup`, the `Commenter` bubble shows, and the draft card
+   carries the quoted passage. Send it, reload, and the thread is still there with
+   its anchor and its `mark.vr-anchor` in the text. The panel foot holds the
+   offline notice alone and is `hidden` while the server answers, so the sheet
+   ends flush on its last card. Nothing overflows sideways:
+   `document.documentElement.scrollWidth === clientWidth`.
+4. `browser_resize` **1600×900** confirms the desktop is untouched — the panel is
+   a full-height rail on the right edge, the sidebar is visible.
+5. Delete whatever thread the check created (`visual-report delete <document> tN`).
+
+**What this cannot see.** A driven Chrome/WebKit has no dynamic browser toolbar,
+no virtual keyboard and no iOS AutoFill bar, so `--vr-view-h` / `--vr-view-lift`
+and the input attributes that keep the keychain bar away are only verifiable as
+*rendered markup*, never as behavior. Anything about those three is confirmed on
+the real iPhone or not at all.
+
 ## Output
 
 After writing, give the user **one line**: what the page covers + the URL of the
