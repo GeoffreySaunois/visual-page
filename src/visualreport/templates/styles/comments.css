@@ -72,7 +72,10 @@ mark.vr-anchor.active{ box-shadow:0 0 0 2px var(--vr-c-mark); }
 .vr-filters button[aria-pressed="true"]{ border-color:var(--accent); color:var(--accent); font-weight:600; }
 
 .vr-panel-body{ flex:1 1 auto; overflow-y:auto; padding:14px; }
+/* The foot exists for the offline notice; served, it is hidden rather than left
+   as an empty bordered band under the threads. */
 .vr-panel-foot{ border-top:1px solid var(--border); padding:12px 14px; }
+.vr-panel-foot[hidden]{ display:none; }
 .vr-offline{
   font-size:12px; color:var(--text-soft); background:var(--code-bg);
   border-radius:8px; padding:9px 11px; line-height:1.5;
@@ -170,7 +173,7 @@ mark.vr-anchor.active{ box-shadow:0 0 0 2px var(--vr-c-mark); }
 /* ------------------------------------------------------- On a phone -------- */
 /* A 384px rail on a 390px screen is the whole screen with none of the
    affordances, so the panel rises from the bottom edge as a sheet: the document
-   stays readable above it and the composer sits under the thumb.
+   stays readable above it and the threads sit under the thumb.
 
    Its box is driven by the visual viewport — the part of the page a phone
    actually shows. `--vr-view-h` is that height and `--vr-view-lift` the band
@@ -210,9 +213,6 @@ mark.vr-anchor.active{ box-shadow:0 0 0 2px var(--vr-c-mark); }
   .vr-send{ min-height:44px; font-size:15px; padding:0 18px; }
   /* Safari zooms the page on focus when a field is under 16px. */
   .vr-composer textarea{ font-size:16px; }
-  /* The document composer is always there; on a sheet it gives its height back
-     to the threads until something is typed into it. */
-  .vr-panel-foot .vr-composer textarea{ min-height:46px; }
   /* No ⌘⏎ on a phone. */
   .vr-composer-row .vr-hint{ display:none; }
   #vr-bubble{ font-size:15px; padding:12px 20px; }

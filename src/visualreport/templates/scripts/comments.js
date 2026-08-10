@@ -258,7 +258,10 @@
     if (!shown.length && !state.draftAnchor) list.appendChild(emptyNotice());
     shown.forEach(function (thread) { list.appendChild(threadCard(thread)); });
     foot.innerHTML = "";
-    foot.appendChild(state.api ? documentComposer() : offlineNotice());
+    /* The foot carries the offline notice and nothing else: with a server there,
+       it is an empty band and steps out of the sheet's way. */
+    foot.hidden = Boolean(state.api);
+    if (!state.api) foot.appendChild(offlineNotice());
     highlight();
   }
 
@@ -429,15 +432,6 @@
         return reply(thread.id, body);
       }
     });
-  }
-
-  function documentComposer() {
-    var wrap = element("div", "");
-    wrap.appendChild(composer({
-      placeholder: "Commenter le document…",
-      submit: function (body) { return openThread(null, body); }
-    }));
-    return wrap;
   }
 
   function draftCard() {
