@@ -41,7 +41,10 @@ mark.vr-anchor.active{ box-shadow:0 0 0 2px var(--vr-c-mark); }
 /* ------------------------------------------------------- The rail ---------- */
 #vr-panel{
   position:fixed; top:0; right:0; z-index:70;
-  width:var(--vr-panel-w); max-width:100vw; height:100vh;
+  width:var(--vr-panel-w); max-width:100vw;
+  /* `dvh` is the viewport actually on screen; `vh` is the taller one a mobile
+     browser's overlaying toolbar leaves partly hidden. */
+  height:100vh; height:100dvh;
   display:flex; flex-direction:column;
   background:var(--surface); border-left:1px solid var(--border); box-shadow:var(--shadow);
   transform:translateX(100%); transition:transform .22s ease;
@@ -163,3 +166,54 @@ mark.vr-anchor.active{ box-shadow:0 0 0 2px var(--vr-c-mark); }
 .vr-send[disabled]{ opacity:.5; cursor:default; }
 
 .vr-empty{ font-size:13px; color:var(--text-soft); text-align:center; padding:24px 10px; }
+
+/* ------------------------------------------------------- On a phone -------- */
+/* A 384px rail on a 390px screen is the whole screen with none of the
+   affordances, so the panel rises from the bottom edge as a sheet: the document
+   stays readable above it and the composer sits under the thumb.
+
+   Its box is driven by the visual viewport — the part of the page a phone
+   actually shows. `--vr-view-h` is that height and `--vr-view-lift` the band
+   hidden below it (browser toolbar, then the virtual keyboard on top of it),
+   both published by `comments.js`. A fixed element is laid out against the full
+   layout viewport, which neither the toolbar nor the keyboard shrinks, so
+   without that lift the sheet's lower edge — the composer — sits behind them. */
+@media (max-width: 720px){
+  #vr-panel{
+    top:auto; left:0; right:0; bottom:var(--vr-view-lift, 0px);
+    width:auto; max-width:none;
+    height:84vh; height:84dvh;
+    max-height:var(--vr-view-h, 84dvh);
+    border-left:none; border-top:1px solid var(--border);
+    border-radius:16px 16px 0 0;
+    transform:translateY(calc(100% + var(--vr-view-lift, 0px)));
+  }
+  /* The grabber that reads as "this sheet has an edge you can see past". */
+  .vr-panel-head{ position:relative; padding:17px 14px 11px; }
+  .vr-panel-head::before{
+    content:""; position:absolute; top:6px; left:50%; transform:translateX(-50%);
+    width:38px; height:4px; border-radius:999px; background:var(--border);
+  }
+  .vr-panel-head .vr-close{
+    min-width:44px; min-height:44px; margin:-11px -10px -11px 0;
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+  }
+  .vr-filters button{ min-height:44px; font-size:13.5px; }
+  .vr-panel-body{ min-height:0; padding:12px; -webkit-overflow-scrolling:touch; }
+  .vr-panel-foot{ padding:10px 12px calc(10px + env(safe-area-inset-bottom)); }
+
+  /* 44px is the smallest target a finger hits reliably. */
+  .vr-menu-btn{ min-width:44px; min-height:44px; font-size:18px; }
+  .vr-menu-items button{ min-height:44px; font-size:14.5px; padding:0 12px; display:flex; align-items:center; }
+  .vr-actions button{ min-height:44px; padding:0 14px; font-size:13.5px; }
+  .vr-composer-row button:not(.vr-send){ min-height:44px; font-size:13.5px; }
+  .vr-send{ min-height:44px; font-size:15px; padding:0 18px; }
+  /* Safari zooms the page on focus when a field is under 16px. */
+  .vr-composer textarea{ font-size:16px; }
+  /* The document composer is always there; on a sheet it gives its height back
+     to the threads until something is typed into it. */
+  .vr-panel-foot .vr-composer textarea{ min-height:46px; }
+  /* No ⌘⏎ on a phone. */
+  .vr-composer-row .vr-hint{ display:none; }
+  #vr-bubble{ font-size:15px; padding:12px 20px; }
+}

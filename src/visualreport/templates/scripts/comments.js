@@ -47,7 +47,27 @@
     probeApi();
     bindControls();
     bindSelection();
+    publishViewport();
     setInterval(poll, POLL_MS);
+  }
+
+  /* The panel is a sheet on a phone, sized on the part of the page the browser
+     really shows. `--vr-view-h` is that height; `--vr-view-lift` is the band
+     between it and the bottom of the layout viewport — the overlaying browser
+     toolbar, and the virtual keyboard once it is up. Fixed positioning ignores
+     both, so the sheet's own stylesheet subtracts them. */
+  function publishViewport() {
+    var view = window.visualViewport;
+    if (!view) return;
+    function apply() {
+      var layout = document.documentElement.clientHeight;
+      root.style.setProperty("--vr-view-h", view.height + "px");
+      root.style.setProperty("--vr-view-lift",
+        Math.max(0, Math.round(layout - view.height - view.offsetTop)) + "px");
+    }
+    view.addEventListener("resize", apply);
+    view.addEventListener("scroll", apply);
+    apply();
   }
 
   function probeApi() {
@@ -597,6 +617,9 @@
   }
 
   function openPanel() {
+    /* On a phone the panel covers the lower half of the screen, which is where a
+       bubble raised from a selection sits. */
+    hideBubble();
     root.setAttribute("data-comments", "open");
     toggle.setAttribute("aria-pressed", "true");
   }
