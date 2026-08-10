@@ -32,10 +32,8 @@ under its own name and its own date — `refresh <kind>-<slug>` for one document
 
 What it cannot promise is that an old page comes back *the same*: it is rebuilt by
 today's renderer, so a page published before a dialect or a splitter change comes
-back rendered the way that source reads now. On the August 2026 pass, two July
-pages came back with their fences shown as literal text — the block splitter cuts
-a 4-space-indented fence out of the list item it belongs to, which the version
-that built them did not. **Take a copy of the archive before a wide pass** (it is
+back rendered the way that source reads now — what you want when the change is a
+fix, a surprise otherwise. **Take a copy of the archive before a wide pass** (it is
 outside any repo and there is no undo), and diff the visible text of the pages that
 changed.
 
@@ -100,6 +98,15 @@ src/visualreport/
 top-level blocks (a paragraph, a fence, a callout, a heading). A comment anchor
 stores a block index; an iteration diff computes per block. Because both read the
 *same* split of the *same* source, an index always means the same passage.
+
+Which makes the split itself load-bearing across versions: **change how a source
+is cut and every stored index below the first change means another passage.** The
+next real render repairs it — `comments/anchors.py` re-homes each thread by
+matching its recorded block *text*, not its index — but a `refresh` embeds the
+stored indices untouched, by design. So a splitter change is measured on the real
+stores in `~/.claude/html-reports/comments/` before the archive is rebuilt: the
+threads whose index moves are those of a document rebuilt without a re-render in
+between, and they need one.
 
 **Per-block features are decorators.** `document/composition.py` rebuilds the
 markdown body by passing each block through a chain of `BlockDecorator`s before

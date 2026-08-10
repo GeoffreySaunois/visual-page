@@ -18,6 +18,9 @@ ADMONITION_RE = re.compile(r"^(!!!|\?\?\?)(\s|$)")
 FENCE_RE = re.compile(r"^(`{3,}|~{3,})")
 LIST_ITEM_RE = re.compile(r"^\s*([-*+]|\d+[.)])\s")
 TABLE_RULE_RE = re.compile(r"^\s*\|?[\s:|-]*-[\s:|-]*$", re.MULTILINE)
+# Content nested under the block above it: the 4-space (or tab) indent markdown
+# requires of a fence or a paragraph continuing a list item or a tab body.
+CONTINUATION_RE = re.compile(r"^(?: {4,}|\t)\s*\S")
 
 
 @dataclass(frozen=True)
@@ -72,11 +75,14 @@ class Block:
 def split_blocks(body: str) -> list[Block]:
     """Split a markdown body into top-level blocks.
 
-    A block is a run of non-blank lines delimited by blank lines, with three
+    A block is a run of non-blank lines delimited by blank lines, with four
     exceptions kept whole even when they contain blank lines:
       - fenced blocks (``` or ~~~), verbatim to the matching close;
       - callouts and collapsibles (`!!! …` / `??? …`) plus their indented body;
-      - headings, which are always a block of their own.
+      - headings, which are always a block of their own;
+      - a paragraph and the indented content nested under it — the fences and
+        continuation paragraphs of a list item or of a tab body, which belong to
+        the passage they hang from and are meaningless on their own.
     """
     lines = body.split("\n")
     blocks: list[str] = []
@@ -118,11 +124,61 @@ def consume_admonition(lines: list[str], start: int, out: list[str]) -> int:
 
 
 def consume_paragraph(lines: list[str], start: int, out: list[str]) -> int:
-    end = start + 1
-    while end < len(lines) and lines[end].strip() and not is_block_start(lines[end]):
-        end += 1
+    """A paragraph (a list included) together with everything indented under it.
+
+    Markdown nests a fence or a continuation paragraph inside a list item — or
+    inside a tab body — behind a blank line and a 4-space indent. Ending the
+    block on that blank line would leave the indented part alone in a block of
+    its own, where the 4 spaces read as an indented code block and a fence shows
+    as literal text.
+    """
+    end = consume_run(lines, start)
+    while (nested := continuation_start(lines, end)) is not None:
+        end = consume_run(lines, nested)
     out.append("\n".join(lines[start:end]))
     return end
+
+
+def consume_run(lines: list[str], start: int) -> int:
+    """One run of non-blank lines, stopping at the next top-level construct.
+    An indented fence inside the run is opaque: its body may hold blank lines
+    and lines of any indentation."""
+    end = start
+    while end < len(lines) and lines[end].strip():
+        if end > start and is_block_start(lines[end]):
+            break
+        if (fence := indented_fence(lines[end])) is not None:
+            end = skip_fence_body(lines, end, fence)
+            continue
+        end += 1
+    return end
+
+
+def continuation_start(lines: list[str], end: int) -> int | None:
+    """Index of the indented content hanging under the run that ends at `end`,
+    across the blank lines between them — `None` when what follows starts a
+    block of its own."""
+    probe = end
+    while probe < len(lines) and not lines[probe].strip():
+        probe += 1
+    if probe == end or probe >= len(lines):
+        return None
+    return probe if CONTINUATION_RE.match(lines[probe]) else None
+
+
+def skip_fence_body(lines: list[str], start: int, fence: str) -> int:
+    end = start + 1
+    while end < len(lines) and not is_closing_fence(lines[end].lstrip(), fence):
+        end += 1
+    return min(end + 1, len(lines))
+
+
+def indented_fence(line: str) -> str | None:
+    """The fence marker of a fence opened under an indent — the shape a fence
+    takes inside a list item. A fence at column 0 is a block of its own."""
+    if not CONTINUATION_RE.match(line):
+        return None
+    return opening_fence(line.lstrip())
 
 
 def opening_fence(line: str) -> str | None:
