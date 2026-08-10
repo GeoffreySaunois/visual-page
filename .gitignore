@@ -1,0 +1,9 @@
+# The environment is rebuilt from uv.lock, which is tracked.
+.venv/
+
+# Python build artefacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+.DS_Store

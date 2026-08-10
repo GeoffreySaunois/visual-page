@@ -1,0 +1,162 @@
+/* ===========================================================================
+   The comment layer: highlights in the text, threads in a right rail.
+   Reading is always available (an archived page carries its threads inline);
+   writing needs the local server, and the panel says so when it is absent.
+   =========================================================================== */
+
+:root{
+  --vr-c-human: var(--accent);
+  --vr-c-agent: var(--teal);
+  --vr-c-mark:  #ffd54a;
+  --vr-panel-w: 384px;
+}
+[data-theme="dark"]{ --vr-c-mark:#c9a227; }
+@media (prefers-color-scheme: dark){ [data-theme="auto"]{ --vr-c-mark:#c9a227; } }
+
+/* ------------------------------------------------------- Anchors in the text */
+mark.vr-anchor{
+  background:color-mix(in srgb, var(--vr-c-mark) 42%, transparent);
+  color:inherit; border-radius:3px; padding:0 1px; cursor:pointer;
+  box-shadow:inset 0 -2px 0 color-mix(in srgb, var(--vr-c-mark) 80%, transparent);
+}
+mark.vr-anchor:hover{ background:color-mix(in srgb, var(--vr-c-mark) 62%, transparent); }
+mark.vr-anchor.resolved{ background:none; box-shadow:inset 0 -1px 0 var(--border); }
+mark.vr-anchor.active{ box-shadow:0 0 0 2px var(--vr-c-mark); }
+/* A block whose thread lost its exact wording is flagged as a whole, since the
+   words to underline no longer exist. */
+.vr-b.vr-drifted{ box-shadow:inset 3px 0 0 var(--vr-c-mark); padding-left:10px; }
+
+/* ------------------------------------------------------- Selection bubble -- */
+#vr-bubble{
+  position:absolute; z-index:80; transform:translate(-50%,-100%);
+  background:var(--accent); color:#fff; border:none; border-radius:999px;
+  font-family:inherit; font-size:12.5px; font-weight:600; padding:7px 13px;
+  cursor:pointer; box-shadow:var(--shadow); display:none;
+}
+#vr-bubble.visible{ display:block; }
+
+/* ------------------------------------------------------- The rail ---------- */
+#vr-panel{
+  position:fixed; top:0; right:0; z-index:70;
+  width:var(--vr-panel-w); max-width:100vw; height:100vh;
+  display:flex; flex-direction:column;
+  background:var(--surface); border-left:1px solid var(--border); box-shadow:var(--shadow);
+  transform:translateX(100%); transition:transform .22s ease;
+}
+[data-comments="open"] #vr-panel{ transform:none; }
+@media (min-width:1500px){
+  /* Wide screens keep the prose centered where it was; narrower ones let the
+     rail overlap rather than squeeze the column. */
+  [data-comments="open"] .content{ padding-right:calc(40px + var(--vr-panel-w)); }
+}
+
+.vr-panel-head{
+  padding:16px 18px 12px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+}
+.vr-panel-head h2{ font-size:14px; margin:0; flex:1 1 auto; letter-spacing:.02em; }
+.vr-panel-head .vr-close{
+  background:none; border:none; color:var(--text-soft); font-size:18px; cursor:pointer; line-height:1;
+}
+.vr-filters{ display:flex; gap:6px; flex:1 1 100%; }
+.vr-filters button{
+  flex:1 1 auto; background:transparent; border:1px solid var(--border); border-radius:8px;
+  color:var(--text-soft); font-family:inherit; font-size:12px; padding:5px 8px; cursor:pointer;
+}
+.vr-filters button[aria-pressed="true"]{ border-color:var(--accent); color:var(--accent); font-weight:600; }
+
+.vr-panel-body{ flex:1 1 auto; overflow-y:auto; padding:14px; }
+.vr-panel-foot{ border-top:1px solid var(--border); padding:12px 14px; }
+.vr-offline{
+  font-size:12px; color:var(--text-soft); background:var(--code-bg);
+  border-radius:8px; padding:9px 11px; line-height:1.5;
+}
+.vr-offline code{ font-size:11.5px; }
+
+/* ------------------------------------------------------- Thread cards ------ */
+.vr-thread{
+  border:1px solid var(--border); border-radius:12px; background:var(--bg);
+  padding:12px 13px; margin-bottom:12px; font-size:14px;
+}
+.vr-thread.active{ border-color:var(--accent); box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent); }
+.vr-thread.resolved{ opacity:.72; }
+.vr-thread-head{ display:flex; align-items:center; gap:7px; margin-bottom:8px; flex-wrap:wrap; }
+.vr-tid{ font-family:var(--mono); font-size:11.5px; color:var(--text-soft); }
+.vr-chip{
+  font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+  padding:2px 7px; border-radius:999px; white-space:nowrap;
+}
+.vr-chip.human{ background:color-mix(in srgb,var(--vr-c-human) 18%,transparent); color:var(--vr-c-human); }
+.vr-chip.agent{ background:color-mix(in srgb,var(--vr-c-agent) 20%,transparent); color:var(--vr-c-agent); }
+.vr-chip.state{ background:color-mix(in srgb,var(--vr-c-mark) 30%,transparent); color:var(--text); }
+.vr-chip.done{ background:color-mix(in srgb,var(--green) 18%,transparent); color:var(--green); }
+.vr-section{ flex:1 1 100%; font-size:11.5px; color:var(--text-soft); }
+
+.vr-quote{
+  margin:0 0 10px; padding:6px 10px; border-left:2px solid var(--vr-c-mark);
+  background:color-mix(in srgb,var(--vr-c-mark) 10%,transparent);
+  font-size:13px; color:var(--text-soft); cursor:pointer;
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+}
+
+.vr-msg{ padding:7px 0; border-top:1px dashed var(--border); }
+.vr-msg:first-of-type{ border-top:none; }
+.vr-msg-head{ display:flex; align-items:center; gap:8px; margin-bottom:3px; }
+.vr-edited{ font-size:10.5px; color:var(--text-soft); font-style:italic; }
+
+/* ⋮ overflow of a message: rewrite it, drop it, drop the thread. */
+.vr-menu{ position:relative; margin-left:auto; }
+.vr-menu-btn{
+  background:none; border:none; color:var(--text-soft); cursor:pointer;
+  font-size:15px; line-height:1; padding:0 2px; border-radius:6px;
+}
+.vr-menu-btn:hover{ color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent); }
+.vr-menu-items{
+  position:absolute; right:0; top:calc(100% + 4px); z-index:6; min-width:170px;
+  display:flex; flex-direction:column; padding:4px;
+  background:var(--surface); border:1px solid var(--border); border-radius:9px; box-shadow:var(--shadow);
+}
+.vr-menu-items button{
+  background:none; border:none; border-radius:6px; cursor:pointer;
+  font-family:inherit; font-size:12.5px; color:var(--text);
+  text-align:left; padding:6px 9px; white-space:nowrap;
+}
+.vr-menu-items button:hover{ background:color-mix(in srgb,var(--accent) 12%,transparent); color:var(--accent); }
+.vr-menu-items button.danger:hover{ background:color-mix(in srgb,var(--rose) 14%,transparent); color:var(--rose); }
+.vr-author{ font-size:12px; font-weight:700; }
+.vr-author.human{ color:var(--vr-c-human); }
+.vr-author.agent{ color:var(--vr-c-agent); }
+.vr-time{ font-size:11px; color:var(--text-soft); }
+.vr-body{ white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.55; }
+.vr-body code{ font-size:.85em; }
+
+.vr-actions{ display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
+.vr-actions button{
+  background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--text-soft);
+  font-family:inherit; font-size:11.5px; padding:4px 9px; cursor:pointer;
+}
+.vr-actions button:hover{ border-color:var(--accent); color:var(--accent); }
+.vr-actions button.danger:hover{ border-color:var(--rose); color:var(--rose); }
+
+/* ------------------------------------------------------- Composer ---------- */
+.vr-composer{ margin-top:9px; }
+.vr-composer textarea{
+  width:100%; min-height:64px; resize:vertical; font-family:inherit; font-size:13.5px;
+  color:var(--text); background:var(--surface); border:1px solid var(--border);
+  border-radius:9px; padding:8px 10px; line-height:1.5;
+}
+.vr-composer textarea:focus{ outline:none; border-color:var(--accent); }
+.vr-composer-row{ display:flex; align-items:center; gap:8px; margin-top:7px; }
+.vr-composer-row .vr-hint{ flex:1 1 auto; font-size:11px; color:var(--text-soft); }
+.vr-composer-row button:not(.vr-send){
+  background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--text-soft);
+  font-family:inherit; font-size:12px; padding:5px 10px; cursor:pointer;
+}
+.vr-composer-row button:not(.vr-send):hover{ border-color:var(--accent); color:var(--accent); }
+.vr-send{
+  background:var(--accent); color:#fff; border:none; border-radius:8px;
+  font-family:inherit; font-size:12.5px; font-weight:600; padding:6px 13px; cursor:pointer;
+}
+.vr-send[disabled]{ opacity:.5; cursor:default; }
+
+.vr-empty{ font-size:13px; color:var(--text-soft); text-align:center; padding:24px 10px; }

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+{{FAVICON}}
+<meta name="report-title" content="{{TITLE}}" />
+<meta name="report-eyebrow" content="{{EYEBROW}}" />
+<meta name="report-date" content="{{DATE}}" />
+<meta name="report-subtitle" content="{{SUBTITLE}}" />
+<meta name="report-document" content="{{DOCUMENT}}" />
+<script>
+/* Anti-flash: resolve stored preferences before first paint. */
+(function () {
+  var t = localStorage.getItem("vr-theme");
+  if (t === "light" || t === "dark" || t === "auto") document.documentElement.setAttribute("data-theme", t);
+  var d = localStorage.getItem("vr-diff");
+  document.documentElement.setAttribute("data-diff", d === "off" ? "off" : "on");
+})();
+</script>
+{{HEAD_LIBS}}
+<style>
+{{STYLES}}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<button class="menu-btn" aria-label="Menu">☰</button>
+<div class="layout">
+<aside class="sidebar">
+  <div class="side-head">
+    <h1>{{TITLE}}</h1>
+    <button id="theme-toggle" title="Basculer clair/sombre" aria-label="Basculer le thème">◐</button>
+  </div>
+  <div class="subtitle">{{SUBTITLE}}</div>
+  {{SIDE_CONTROLS}}
+  <nav id="toc">
+    <div class="toc-label">Sommaire</div>
+{{TOC}}
+  </nav>
+</aside>
+<div class="content"><main>
+
+  <span class="eyebrow">{{EYEBROW}}</span><span class="headdate">{{DATE}}</span>
+  <h1>{{TITLE}}</h1>
+  <p class="lede">{{SUBTITLE}}</p>
+
+{{CHANGELOG}}
+{{CONTENT}}
+
+</main></div>
+</div>
+
+<button id="vr-bubble" type="button">Commenter</button>
+<aside id="vr-panel" aria-label="Commentaires">
+  <div class="vr-panel-head">
+    <h2>Commentaires</h2>
+    <button class="vr-close" type="button" aria-label="Fermer">✕</button>
+    <div class="vr-filters">
+      <button type="button" data-filter="open" aria-pressed="true">Ouverts</button>
+      <button type="button" data-filter="resolved" aria-pressed="false">Résolus</button>
+      <button type="button" data-filter="all" aria-pressed="false">Tous</button>
+    </div>
+  </div>
+  <div class="vr-panel-body" id="vr-threads"></div>
+  <div class="vr-panel-foot" id="vr-foot"></div>
+</aside>
+
+<script type="application/json" id="vr-bootstrap">{{BOOTSTRAP}}</script>
+{{SCRIPTS}}
+</body>
+</html>

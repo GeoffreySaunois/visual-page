@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr" data-theme="auto">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Galerie · pages visuelles</title>
+{{FAVICON}}
+<style>
+  :root {
+    --bg: #f7f8fa; --surface: #ffffff; --surface-2: #f0f2f5; --border: #e3e6ea;
+    --text: #1a1d23; --text-dim: #5b6472; --accent: #4f46e5; --amber: #b45309;
+    --radius: 12px; --maxw: 920px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1116; --surface: #161b22; --surface-2: #1c232c; --border: #2a313b;
+      --text: #e6edf3; --text-dim: #8b949e; --accent: #818cf8; --amber: #e8a33d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font);
+    line-height: 1.6; font-size: 16px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 48px 24px 96px; }
+  header.gallery-head { margin-bottom: 32px; }
+  .eyebrow { color: var(--accent); font-weight: 600; font-size: 13px; letter-spacing: .04em;
+    text-transform: uppercase; margin: 0 0 8px; }
+  h1 { font-size: 32px; line-height: 1.2; margin: 0 0 8px; letter-spacing: -.02em; }
+  .count { color: var(--text-dim); font-size: 14px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 24px; }
+  .search { flex: 1 1 220px; min-width: 180px; padding: 10px 14px; font-size: 14px; font-family: var(--font);
+    background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); }
+  .search:focus { outline: none; border-color: var(--accent); }
+  .sorts { display: inline-flex; gap: 4px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 4px; }
+  .sorts button { font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--text-dim);
+    background: none; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .sorts button:hover { color: var(--text); }
+  .sorts button.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .card.hidden { display: none; }
+  .no-results { color: var(--text-dim); display: none; }
+  .card { display: block; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 22px; text-decoration: none; color: inherit;
+    transition: border-color .15s, transform .15s; }
+  .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .card .eyebrow { margin-bottom: 6px; }
+  .card h2 { font-size: 18px; margin: 0 0 6px; letter-spacing: -.01em; line-height: 1.3; }
+  .card .meta { color: var(--text-dim); font-size: 13px; margin: 0; }
+  .card .badge { display: inline-block; margin: 10px 0 0; font-size: 12px; font-weight: 600;
+    color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-radius: 999px; padding: 2px 10px; }
+  .card .badge.waiting { color: var(--amber); background: color-mix(in srgb, var(--amber) 15%, transparent); }
+  .empty { color: var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="gallery-head">
+    <p class="eyebrow">Archive</p>
+    <h1>Pages visual-report</h1>
+    <p class="count">{{COUNT}}</p>
+  </header>
+  <div class="toolbar">
+    <input class="search" type="search" id="search" placeholder="Rechercher…" autocomplete="off" />
+    <div class="sorts" id="sorts">
+      <button data-sort="date" class="active">Récentes</button>
+      <button data-sort="date-asc">Anciennes</button>
+      <button data-sort="comments">Commentées</button>
+      <button data-sort="title">A–Z</button>
+    </div>
+  </div>
+  <div class="grid" id="grid">
+{{CARDS}}
+  </div>
+  <p class="no-results" id="noResults">Aucune page ne correspond.</p>
+</div>
+<script>
+  const grid = document.getElementById("grid");
+  const cards = Array.from(grid.querySelectorAll(".card"));
+  const search = document.getElementById("search");
+  const noResults = document.getElementById("noResults");
+  const sorts = document.getElementById("sorts");
+
+  const comparators = {
+    "date": (a, b) => b.dataset.date.localeCompare(a.dataset.date),
+    "date-asc": (a, b) => a.dataset.date.localeCompare(b.dataset.date),
+    "comments": (a, b) => Number(b.dataset.comments) - Number(a.dataset.comments),
+    "title": (a, b) => a.dataset.title.localeCompare(b.dataset.title),
+  };
+
+  function applySort(key) {
+    cards.slice().sort(comparators[key]).forEach(card => grid.appendChild(card));
+  }
+
+  function applyFilter() {
+    const query = search.value.trim().toLowerCase();
+    let visible = 0;
+    cards.forEach(card => {
+      const match = !query || card.dataset.text.includes(query);
+      card.classList.toggle("hidden", !match);
+      if (match) visible++;
+    });
+    noResults.style.display = visible ? "none" : "block";
+  }
+
+  sorts.addEventListener("click", event => {
+    const button = event.target.closest("button[data-sort]");
+    if (!button) return;
+    sorts.querySelectorAll("button").forEach(other => other.classList.toggle("active", other === button));
+    applySort(button.dataset.sort);
+  });
+
+  search.addEventListener("input", applyFilter);
+</script>
+</body>
+</html>

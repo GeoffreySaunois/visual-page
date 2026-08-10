@@ -1,0 +1,224 @@
+/* ===========================================================================
+   visual-report — the charte: design tokens, theming, page layout, typography.
+   Derived from the cours-ecc-quantique design system (sidebar layout, callout
+   boxes, figure cards), extended with a per-page TOC + scroll-spy, light/dark
+   theming and Pygments token colors.
+   Every other sheet styles content *inside* this frame.
+   =========================================================================== */
+
+:root {
+  --accent:        #6d28d9;
+  --accent-strong: #4c1d95;
+  --teal:          #0d9488;
+  --amber:         #b45309;
+  --blue:          #1d4ed8;
+  --green:         #15803d;
+  --rose:          #be123c;
+
+  --bg:            #fbfaf8;
+  --surface:       #ffffff;
+  --text:          #1f2430;
+  --text-soft:     #4b5563;
+  --border:        #e5e1da;
+  --code-bg:       #f4f2ee;
+  --row-alt:       #fcfbf9;
+
+  --maxw:          860px;
+  --sidebar-w:     300px;
+  --radius:        12px;
+  --shadow:        0 1px 3px rgba(16,18,27,.06), 0 8px 24px rgba(16,18,27,.05);
+
+  --sans:  -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono:  "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+}
+
+[data-theme="dark"] { color-scheme: dark; }
+[data-theme="dark"] {
+  --accent:        #9d6bff;
+  --accent-strong: #c4b5fd;
+  --teal:          #2dd4bf;
+  --amber:         #e8a33d;
+  --blue:          #60a5fa;
+  --green:         #4ade80;
+  --rose:          #fb7185;
+
+  --bg:            #101218;
+  --surface:       #181b24;
+  --text:          #e5e7ef;
+  --text-soft:     #9aa3b2;
+  --border:        #2a2f3d;
+  --code-bg:       #232734;
+  --row-alt:       #1c2029;
+
+  --shadow: 0 1px 3px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.25);
+}
+@media (prefers-color-scheme: dark) {
+  [data-theme="auto"] { color-scheme: dark; }
+  [data-theme="auto"] {
+    --accent:        #9d6bff;
+    --accent-strong: #c4b5fd;
+    --teal:          #2dd4bf;
+    --amber:         #e8a33d;
+    --blue:          #60a5fa;
+    --green:         #4ade80;
+    --rose:          #fb7185;
+
+    --bg:            #101218;
+    --surface:       #181b24;
+    --text:          #e5e7ef;
+    --text-soft:     #9aa3b2;
+    --border:        #2a2f3d;
+    --code-bg:       #232734;
+    --row-alt:       #1c2029;
+
+    --shadow: 0 1px 3px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.25);
+  }
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ----------------------------------------------------------- Layout ------- */
+.layout { display: flex; align-items: flex-start; }
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 18px 60px;
+}
+.sidebar .side-head { display: flex; align-items: flex-start; gap: 8px; }
+.sidebar h1 {
+  font-size: 15px; line-height: 1.35;
+  letter-spacing: .02em;
+  margin: 0 0 4px;
+  color: var(--accent-strong);
+  flex: 1 1 auto;
+}
+.sidebar .subtitle { font-size: 12.5px; color: var(--text-soft); margin-bottom: 18px; }
+
+#theme-toggle {
+  flex: 0 0 auto;
+  background: transparent; border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text-soft); cursor: pointer; font-size: 14px; line-height: 1;
+  padding: 5px 8px;
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+/* TOC (generated from the page's h2/h3) */
+.sidebar nav .toc-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-soft); opacity: .8; margin: 14px 0 6px 10px;
+}
+.sidebar nav a {
+  display: block;
+  padding: 5px 10px;
+  margin: 1px 0;
+  border-radius: 8px;
+  color: var(--text-soft);
+  text-decoration: none;
+  font-size: 13.5px;
+  line-height: 1.45;
+  transition: background .15s, color .15s;
+}
+.sidebar nav a.toc-h3 { padding-left: 26px; font-size: 12.5px; }
+.sidebar nav a:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-strong); }
+.sidebar nav a.active { background: var(--accent); color: #fff; font-weight: 600; }
+
+.content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  padding: 56px 40px 120px;
+}
+main { width: 100%; max-width: var(--maxw); }
+/* Block wrappers are addressing, not layout: they must not add spacing of their
+   own, so the margins of what they hold keep governing the rhythm. */
+.vr-b { margin: 0; }
+
+/* ----------------------------------------------------------- Typography --- */
+main h1 {
+  font-size: 34px; line-height: 1.2; font-weight: 800;
+  margin: 0 0 8px; letter-spacing: -.01em;
+}
+.eyebrow {
+  display: inline-block; font-size: 12.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--accent); margin-bottom: 14px;
+}
+.headdate { font-size: 12.5px; color: var(--text-soft); margin-left: 12px; letter-spacing: .04em; }
+.lede { font-size: 19px; color: var(--text-soft); margin: 0 0 36px; line-height: 1.6; }
+
+main h2 {
+  font-size: 25px; font-weight: 700; margin: 52px 0 14px;
+  padding-bottom: 8px; border-bottom: 2px solid var(--border); letter-spacing: -.01em;
+}
+main h3 { font-size: 20px; font-weight: 700; margin: 34px 0 10px; }
+main h4 { font-size: 15.5px; font-weight: 700; margin: 24px 0 6px; color: var(--text-soft); text-transform: uppercase; letter-spacing: .04em; }
+main h2 .headerlink, main h3 .headerlink {
+  opacity: 0; margin-left: 8px; text-decoration: none; font-weight: 400; color: var(--text-soft);
+}
+main h2:hover .headerlink, main h3:hover .headerlink { opacity: .6; }
+
+main p { margin: 14px 0; }
+main a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+main ul, main ol { padding-left: 26px; }
+main li { margin: 7px 0; }
+main hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+strong { font-weight: 700; }
+.term { font-weight: 700; color: var(--accent-strong); }
+.acro { border-bottom: 1.5px dotted var(--accent); cursor: help; font-weight: 600; color: var(--accent-strong); }
+
+/* inline code + code blocks (Pygments) */
+code, kbd {
+  font-family: var(--mono); font-size: .88em;
+  background: var(--code-bg); padding: 1px 6px; border-radius: 5px;
+}
+.highlight pre, pre {
+  background: #1e2230; color: #e6e8ef; padding: 16px 18px; border-radius: var(--radius);
+  overflow-x: auto; font-size: 14px; line-height: 1.55;
+}
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+/* Pygments tokens — code blocks keep a dark background in both themes */
+.highlight .k, .highlight .kd, .highlight .kn, .highlight .kc, .highlight .ow { color: #c792ea; }
+.highlight .s, .highlight .s1, .highlight .s2, .highlight .sd, .highlight .sb { color: #a5d6a7; }
+.highlight .nf, .highlight .fm { color: #82aaff; }
+.highlight .nc, .highlight .nn { color: #ffcb6b; }
+.highlight .c, .highlight .c1, .highlight .cm, .highlight .ch { color: #7d8799; font-style: italic; }
+.highlight .mi, .highlight .mf, .highlight .mh { color: #f78c6c; }
+.highlight .o, .highlight .p { color: #9aa3b8; }
+.highlight .nb, .highlight .bp { color: #80cbc4; }
+.highlight .nd { color: #c792ea; }
+.highlight .err { color: #fb7185; }
+
+/* reading progress bar */
+#progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); width: 0; z-index: 100; transition: width .1s; }
+
+/* ----------------------------------------------------------- Mobile ------- */
+.menu-btn { display: none; }
+@media (max-width: 900px) {
+  .sidebar { position: fixed; z-index: 50; transform: translateX(-100%); transition: transform .25s; box-shadow: var(--shadow); }
+  .sidebar.open { transform: none; }
+  .menu-btn { display: inline-flex; position: fixed; top: 14px; left: 14px; z-index: 60;
+    background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 9px 12px; font-size: 18px; cursor: pointer; box-shadow: var(--shadow); }
+  .content { padding: 64px 20px 100px; }
+  main h1 { font-size: 27px; }
+}
+
+/* MathJax sizing guard */
+mjx-container { overflow-x: auto; overflow-y: hidden; max-width: 100%; }
+mjx-container[display="true"] { margin: 18px 0 !important; }

@@ -1,0 +1,20 @@
+/* ===========================================================================
+   Print: the document only — no navigation, no controls, no comment layer.
+   =========================================================================== */
+
+@media print {
+  .sidebar, .menu-btn, #progress, #theme-toggle, .side-controls,
+  #vr-panel, #vr-bubble { display: none; }
+  .content { padding: 0; }
+  mark.vr-anchor { background: none; box-shadow: none; }
+  main details { padding-bottom: 12px; }
+  main details > summary::before { content: ""; }
+  .filetree, .kpi, .msg, .msg-annot, .cols .col, .diff-half, .fig-card { break-inside: avoid; }
+  main table.diff-table tr { break-inside: avoid; }
+  /* Tabs: print every panel stacked; the radio-driven label bar is meaningless on paper. */
+  .tabbed-labels { display: none; }
+  .tabbed-content > .tabbed-block {
+    display: block; border-top: 1px dashed var(--border);
+    padding-top: 10px; margin-top: 10px;
+  }
+}

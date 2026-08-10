@@ -1,0 +1,56 @@
+/* ===========================================================================
+   The iteration layer: what changed since the previous version of this document.
+   Bright, saturated palette — deliberately independent of the doc's muted charte
+   tones, so a review reads as an overlay rather than as content.
+   =========================================================================== */
+
+:root{ --vr-add:#10d15c; --vr-add-ink:#053f1b; --vr-mod:#ffa60a; --vr-mod-ink:#3a2500;
+  --vr-rem:#ff2d63; --vr-rem-ink:#42041a; }
+[data-theme="dark"]{ --vr-add:#2bec74; --vr-mod:#ffc03a; --vr-rem:#ff5c86; }
+@media (prefers-color-scheme: dark){ [data-theme="auto"]{ --vr-add:#2bec74; --vr-mod:#ffc03a; --vr-rem:#ff5c86; } }
+
+ins.vr-ins{ text-decoration:none; background:color-mix(in srgb,var(--vr-add) 34%,transparent);
+  box-shadow:inset 0 -2px 0 var(--vr-add); border-radius:3px; padding:0 2px; }
+del.vr-del{ background:color-mix(in srgb,var(--vr-rem) 28%,transparent); text-decoration:line-through;
+  text-decoration-color:var(--vr-rem); border-radius:3px; padding:0 2px; }
+.vr-chg{ position:relative; }
+.vr-chg.mod{ box-shadow:0 0 0 2px var(--vr-mod); }
+.vr-chg.add{ box-shadow:0 0 0 2px var(--vr-add); }
+.vr-chg.rem{ box-shadow:0 0 0 2px var(--vr-rem); opacity:.7; }
+.vr-badge{ position:absolute; top:-11px; right:14px; z-index:3; font-size:10px; font-weight:800;
+  text-transform:uppercase; letter-spacing:.04em; padding:2px 9px; border-radius:999px;
+  white-space:nowrap; box-shadow:0 1px 6px color-mix(in srgb,var(--text) 18%,transparent); }
+.vr-badge.mod{ background:var(--vr-mod); color:var(--vr-mod-ink); }
+.vr-badge.add{ background:var(--vr-add); color:var(--vr-add-ink); }
+.vr-badge.rem{ background:var(--vr-rem); color:var(--vr-rem-ink); }
+
+/* changelog band */
+.vr-changelog{ background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--accent);
+  border-radius:var(--radius); padding:16px 20px; margin:8px 0 26px; box-shadow:var(--shadow); }
+.vr-cl-head{ font-weight:700; font-size:14px; margin-bottom:10px; }
+.vr-cl-date{ color:var(--text-soft); font-weight:400; }
+.vr-changelog ul{ list-style:none; margin:0; padding:0; font-size:14px; }
+.vr-changelog li{ padding:4px 0; }
+.vr-changelog a{ color:var(--text); text-decoration:none; border-bottom:1px dotted var(--text-soft); }
+.vr-changelog a:hover{ color:var(--accent); }
+.vr-badge-inline{ display:inline-block; font-size:10px; font-weight:800; text-transform:uppercase;
+  letter-spacing:.03em; padding:1px 7px; border-radius:999px; margin-right:8px; vertical-align:middle; }
+.vr-badge-inline.mod{ background:var(--vr-mod); color:var(--vr-mod-ink);}
+.vr-badge-inline.add{ background:var(--vr-add); color:var(--vr-add-ink);}
+.vr-badge-inline.rem{ background:var(--vr-rem); color:var(--vr-rem-ink);}
+
+/* side controls */
+.side-controls{ display:flex; gap:8px; margin:0 0 18px; flex-wrap:wrap; }
+.side-controls .ctrl{ flex:0 0 auto; background:transparent; border:1px solid var(--border); border-radius:8px;
+  color:var(--text-soft); cursor:pointer; font-size:12.5px; line-height:1; padding:6px 10px; text-decoration:none;
+  display:inline-flex; align-items:center; gap:4px; font-family:inherit; }
+.side-controls .ctrl:hover{ border-color:var(--accent); color:var(--accent); }
+.side-controls .ctrl[aria-pressed="true"]{ border-color:var(--accent); color:var(--accent); }
+
+/* diff OFF => show only the accepted / final version */
+[data-diff="off"] ins.vr-ins{ background:none; box-shadow:none; padding:0; }
+[data-diff="off"] del.vr-del{ display:none; }
+[data-diff="off"] .vr-badge{ display:none; }
+[data-diff="off"] .vr-chg{ box-shadow:none; opacity:1; }
+[data-diff="off"] .vr-chg.rem{ display:none; }
+[data-diff="off"] .vr-changelog{ display:none; }

@@ -1,0 +1,32 @@
+[project]
+name = "visualreport"
+version = "0.2.0"
+description = "Compile markdown sources into self-contained HTML report pages, with a local comment loop between Geoffrey and Claude"
+requires-python = ">=3.12"
+dependencies = [
+    "markdown==3.10.2",
+    "pymdown-extensions==11.0.1",
+    "pygments==2.20.0",
+    "pyyaml==6.0.3",
+    "pydantic==2.13.4",
+    "fastapi==0.139.0",
+    "uvicorn==0.50.0",
+]
+
+[project.scripts]
+visual-report = "visualreport.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest==8.4.2",
+]
+
+[build-system]
+requires = ["hatchling==1.28.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/visualreport"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

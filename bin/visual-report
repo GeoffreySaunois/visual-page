@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Run the packaged CLI from anywhere, in the skill's own environment.
+# `uv run` syncs the project first, so a fresh checkout needs no install step.
+set -euo pipefail
+exec uv run --quiet --project "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" visual-report "$@"
