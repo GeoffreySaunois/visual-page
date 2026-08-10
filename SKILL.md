@@ -235,7 +235,9 @@ stops `serve`. Diagnostics: `logs/tunnel.log` in the archive; a `cloudflared` st
 outside the engine is invisible to `status` and holds the metrics port, so
 `pkill -f "cloudflared tunnel run"` then `visual-report stop && visual-report serve`.
 An unauthenticated request to the public hostname answers **302** to the Access login
-— that is the guard working, not a breakage.
+— that is the guard working, not a breakage. The pair comes back at login through a
+launchd agent, so a reboot does not leave the phone on a 502. Setting any of this up
+on another machine, and what breaks it: `docs/remote-access.md`.
 
 ## Iteration diff
 

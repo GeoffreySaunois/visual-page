@@ -13,6 +13,10 @@ The package and the CLI keep the name `visualreport` / `visual-report` while the
 skill is `visual-page`: the archive at `~/.claude/html-reports/`, the comment stores
 and the running server's state are all keyed on it, so renaming buys nothing.
 
+`docs/remote-access.md` is the operational side: how the archive reaches a phone —
+Cloudflare tunnel, Access, and the launchd agent that keeps the pair up — and how to
+set that up from scratch. `deploy/` carries the service definition itself.
+
 ## Run it
 
 ```bash
