@@ -30,6 +30,15 @@ under its own name and its own date — `refresh <kind>-<slug>` for one document
 `--dry-run` to see the list first. It is the gesture that follows a change under
 `templates/`.
 
+What it cannot promise is that an old page comes back *the same*: it is rebuilt by
+today's renderer, so a page published before a dialect or a splitter change comes
+back rendered the way that source reads now. On the August 2026 pass, two July
+pages came back with their fences shown as literal text — the block splitter cuts
+a 4-space-indented fence out of the list item it belongs to, which the version
+that built them did not. **Take a copy of the archive before a wide pass** (it is
+outside any repo and there is no undo), and diff the visible text of the pages that
+changed.
+
 `bin/visual-report` is a wrapper over `uv run --project <here> visual-report`, so
 it works from any directory and syncs the environment on the way in.
 
