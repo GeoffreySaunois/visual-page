@@ -26,6 +26,7 @@ from .document import (
     compose,
     inline_local_images,
     literal_list_markers,
+    orphaned_nested_blocks,
     read_source,
     render_page,
     split_blocks,
@@ -100,6 +101,7 @@ def render(request: RenderRequest) -> RenderOutcome:
     converter = build_converter(assets, include_toc=True)
     html_body = converter.convert(compose(blocks, decorators))
     html_body, warnings = inline_local_images(html_body, request.source.parent)
+    warnings.extend(orphaned_nested_blocks(blocks))
     warnings.extend(literal_list_markers(html_body))
 
     page = render_page(
