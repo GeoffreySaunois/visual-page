@@ -113,17 +113,57 @@
   function remove(threadId) { return send("/threads/" + threadId, "DELETE", null); }
 
   /* ------------------------------------------------------------- Selection -- */
+  /* Two input stories reach the same bubble. A mouse drag ends on `mouseup`, and
+     the selection is final there. A finger has no such moment: iOS Safari builds
+     and adjusts a selection through its own handles, which emit `selectionchange`
+     and nothing else, so touch watches the selection itself and waits for it to
+     stop moving.
+
+     The tap that follows is the delicate part. Pressing the bubble collapses the
+     selection before the click is delivered, which is why the anchor is captured
+     when the bubble appears rather than read back in the click handler, and why a
+     collapse right after a press on the bubble is ignored — reacting to it would
+     hide the bubble out from under the very tap activating it. */
+  var SELECTION_SETTLE_MS = 250;
+  var BUBBLE_TAP_GRACE_MS = 1200;
+  var touchInput = false;     /* the last pointer on the page was a finger */
+  var settleTimer = null;
+  var bubbleHeldUntil = 0;    /* a press on the bubble freezes selection handling */
+
   function bindSelection() {
+    document.addEventListener("pointerdown", notePointer, true);
     document.addEventListener("mouseup", function (event) {
-      if (panel.contains(event.target) || event.target === bubble) return;
+      if (inPanelChrome(event.target)) return;
       setTimeout(considerSelection, 0);
     });
+    document.addEventListener("selectionchange", function () {
+      if (touchInput) settleSelection();
+    });
+    document.addEventListener("touchend", function (event) {
+      if (!inPanelChrome(event.target)) settleSelection();
+    }, { passive: true });
     bubble.addEventListener("click", startDraft);
   }
 
+  function notePointer(event) {
+    touchInput = event.pointerType === "touch" || event.pointerType === "pen";
+    if (bubble.contains(event.target)) bubbleHeldUntil = Date.now() + BUBBLE_TAP_GRACE_MS;
+  }
+
+  /* Handle drags fire `selectionchange` continuously; act on the last one only. */
+  function settleSelection() {
+    if (settleTimer) clearTimeout(settleTimer);
+    settleTimer = setTimeout(considerSelection, SELECTION_SETTLE_MS);
+  }
+
+  function inPanelChrome(target) {
+    return panel.contains(target) || bubble.contains(target);
+  }
+
   function considerSelection() {
+    if (Date.now() < bubbleHeldUntil) return;
     var selection = window.getSelection();
-    if (!selection || selection.isCollapsed) return hideBubble();
+    if (!selection || selection.isCollapsed || !selection.rangeCount) return hideBubble();
     var range = selection.getRangeAt(0);
     var block = blockOf(range.commonAncestorContainer);
     var quote = selection.toString().trim();
@@ -156,16 +196,33 @@
     return after.toString().slice(0, 60);
   }
 
+  /* Above the selection for a mouse, below it for a finger: iOS draws its own
+     Copy / Look Up callout over the top edge of a touch selection, and a bubble
+     sharing that band is unreachable. The bubble is shown before being measured,
+     since a hidden element has no width to centre and clamp on. */
   function showBubble(range) {
     var box = range.getBoundingClientRect();
-    bubble.style.left = (box.left + box.width / 2 + window.scrollX) + "px";
-    bubble.style.top = (box.top + window.scrollY - 8) + "px";
+    var below = touchInput;
     bubble.classList.add("visible");
+    bubble.classList.toggle("below", below);
+    var half = bubble.offsetWidth / 2 || 50;
+    var edge = 8;
+    var viewport = document.documentElement.clientWidth;
+    var centre = box.left + box.width / 2;
+    centre = Math.max(half + edge, Math.min(centre, viewport - half - edge));
+    bubble.style.left = (centre + window.scrollX) + "px";
+    bubble.style.top = ((below ? box.bottom + 10 : box.top - 8) + window.scrollY) + "px";
   }
   function hideBubble() { bubble.classList.remove("visible"); }
 
   function startDraft() {
     hideBubble();
+    /* The finger's native callout stays over the page as long as the selection
+       lives, and the draft card already carries the passage. */
+    if (touchInput) {
+      var selection = window.getSelection();
+      if (selection) selection.removeAllRanges();
+    }
     openPanel();
     paint();
     var field = document.getElementById("vr-draft-body");
