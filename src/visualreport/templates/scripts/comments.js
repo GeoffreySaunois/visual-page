@@ -453,12 +453,13 @@
     return card;
   }
 
-  /* options: {placeholder, submit, id?, value?, label?, onCancel?} */
+  /* options: {placeholder, submit, id, value?, label?, onCancel?} */
   function composer(options) {
     var wrap = element("div", "vr-composer");
     var field = document.createElement("textarea");
     field.placeholder = options.placeholder;
-    if (options.id) field.id = options.id;
+    field.setAttribute("aria-label", options.placeholder);
+    describeAsProse(field, options.id);
     if (options.value) field.value = options.value;
     var send = document.createElement("button");
     send.className = "vr-send";
@@ -487,6 +488,24 @@
     wrap.appendChild(field);
     wrap.appendChild(row);
     return wrap;
+  }
+
+  /* A comment field is free French prose, and every attribute says so.
+
+     The stakes are iOS: when Safari cannot classify a field it guesses, and a
+     wrong guess puts the AutoFill bar — password, credit card, address — over
+     the keyboard. An anonymous control (no `name`, no `id`, no `autocomplete`)
+     is exactly the input that guess is made about, so each field is named after
+     the message it holds, declines autofill outright, and asks for the writing
+     aids prose wants: sentence capitals, autocorrection and spellcheck. */
+  function describeAsProse(field, id) {
+    field.id = id;
+    field.name = id;
+    field.setAttribute("autocomplete", "off");
+    field.setAttribute("autocorrect", "on");
+    field.setAttribute("autocapitalize", "sentences");
+    field.setAttribute("spellcheck", "true");
+    field.setAttribute("inputmode", "text");
   }
 
   /* ------------------------------------------------------------ Highlights -- */
