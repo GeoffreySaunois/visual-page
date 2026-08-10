@@ -18,8 +18,17 @@ and the running server's state are all keyed on it, so renaming buys nothing.
 ```bash
 bin/visual-report render SOURCE.md --serve      # compile, serve, open commentable
 bin/visual-report comments report-<slug>        # what is pending, as markdown
+bin/visual-report refresh --dry-run             # what a rebuild of the archive would touch
 uv run pytest                                   # the suite
 ```
+
+**A page keeps the templates it was built with.** Styles and scripts are inlined at
+render time, so a fix to the comment panel or to the charte reaches the pages
+rendered afterwards and no others. `refresh` closes that gap: it replays every
+archived source through the current templates and rewrites each page in place,
+under its own name and its own date — `refresh <kind>-<slug>` for one document,
+`--dry-run` to see the list first. It is the gesture that follows a change under
+`templates/`.
 
 `bin/visual-report` is a wrapper over `uv run --project <here> visual-report`, so
 it works from any directory and syncs the environment on the way in.
@@ -45,6 +54,7 @@ the way to try things without touching `~/.claude/html-reports`.
 src/visualreport/
   paths.py          the archive layout — the only module that knows the disk
   rendering.py      the pipeline: where document, iteration and comments meet
+  refresh.py        replaying archived pages through today's templates, in place
   document/         markdown source ──► HTML page
     frontmatter.py    the YAML head, and the three documented fallbacks
     blocks.py         the top-level block splitter: THE unit everything aligns on
@@ -114,6 +124,12 @@ decorator, not rewriting the body again.
   while nobody is serving, and the page catches up on its next poll.
 - **The iteration reference is one step.** `src/.last-rendered/<document>.md` holds
   the version last rendered; a diff compares against it and never builds a history.
+- **A refresh advances nothing.** Rebuilding a published page replays the source
+  that produced it: no diff (there is nothing to compare), the iteration reference
+  left where it points, and the threads left on the homes they have — re-homing
+  them on an old version would drag the anchors backwards. The rebuilt page is
+  promoted only once it is whole, and an image whose file left the disk is carried
+  over from the page being replaced, so a refresh never costs a screenshot.
 - **The remote is opt-in by the presence of the cloudflared config.** No
   `~/.cloudflared/config.yml`, no ingress rule naming a hostname, or no
   `cloudflared` on the PATH ⇒ no tunnel, no error, no line in the output — the
