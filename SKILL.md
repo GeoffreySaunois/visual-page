@@ -161,9 +161,12 @@ with the explicit instruction that every paragraph is carried word-for-word.
      paragraph belonging to a list item must be indented **4 spaces**, and the
      next `- ` item after indented content needs a **blank line** before it.
      An unindented fence terminates the list, and the following `- ` lines get
-     lazily absorbed into the paragraph as literal "- " text. The renderer
-     detects the symptom and warns (`literal list marker inside a paragraph`)
-     — treat that warning as a broken page, fix the source.
+     lazily absorbed into the paragraph as literal "- " text. The same 4 spaces
+     carry a tab body under its `=== "…"` header. The renderer detects both
+     symptoms and warns — `literal list marker inside a paragraph` for a list cut
+     by an unindented fence, `indented … block with nothing above it to nest
+     under` for indented content that hangs from no item and no tab — treat
+     either warning as a broken page, fix the source.
    - **Fence options go on the fence line**, never the line below: ` ```mermaid caption="…" `,
      not a bare ` ```mermaid ` followed by `caption="…"`. One line lower they are body
      content — mermaid reads `caption="…"` as its first statement and dies in the browser
