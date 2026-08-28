@@ -302,14 +302,17 @@ main .msg-tool-error pre.msg-body { background: color-mix(in srgb, var(--rose) 1
   padding: 10px 18px; font-size: 13px; color: var(--text-soft);
   background: var(--code-bg); border-top: 1px solid var(--border);
 }
+/* The slides are usually screenshots of a light interface, so a translucent
+   control sitting on top of one disappears into it. The button carries its own
+   opaque ground and a border to stay findable over any slide. */
 .filmstrip-nav {
   position: absolute; top: 50%; transform: translateY(-50%);
-  width: 36px; height: 36px; border-radius: 999px; border: none; cursor: pointer;
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  width: 36px; height: 36px; border-radius: 999px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border);
   color: var(--text); box-shadow: var(--shadow);
   font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center;
 }
-.filmstrip-nav:hover { background: var(--accent); color: #fff; }
+.filmstrip-nav:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
 .filmstrip-prev { left: 10px; }
 .filmstrip-next { right: 10px; }
 .filmstrip-count {

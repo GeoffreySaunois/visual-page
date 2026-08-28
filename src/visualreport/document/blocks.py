@@ -21,6 +21,11 @@ TABLE_RULE_RE = re.compile(r"^\s*\|?[\s:|-]*-[\s:|-]*$", re.MULTILINE)
 # Content nested under the block above it: the 4-space (or tab) indent markdown
 # requires of a fence or a paragraph continuing a list item or a tab body.
 CONTINUATION_RE = re.compile(r"^(?: {4,}|\t)\s*\S")
+# `![alt](path)` and `[text](url)`, reduced to what a person reads. An image's
+# path is an absolute local one — the source addresses a file on disk — so left
+# in, it is what a changelog line about a screenshot would consist of.
+IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)]*)\)")
+LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 
 
 @dataclass(frozen=True)
@@ -68,6 +73,8 @@ class Block:
         text = re.sub(r"^#{1,6}\s*", "", text)
         text = re.sub(r"^(!!!|\?\?\?)\s*\w*\s*", "", text)
         text = re.sub(r"^(```|~~~)\w*\s*", "", text)
+        text = IMAGE_RE.sub(_image_gist, text)
+        text = LINK_RE.sub(r"\1", text)
         text = re.sub(r"[`*_>#|]", "", text).strip()
         return text[:length].rstrip() + "…" if len(text) > length else text
 
@@ -207,3 +214,14 @@ def nearest_heading(blocks: list[Block], index: int) -> str | None:
         if (heading := block.heading_text) is not None:
             return heading
     return None
+
+
+def _image_gist(match: re.Match[str]) -> str:
+    """What an image contributes to a summary line: its alt text when it carries
+    one, its file name otherwise. Never its path — a changelog reads to a person,
+    and a directory tree tells them nothing about which picture moved."""
+    alt = match.group(1).strip()
+    if alt:
+        return alt
+    name = match.group(2).strip().rsplit("/", 1)[-1]
+    return f"image {name}" if name else "image"
