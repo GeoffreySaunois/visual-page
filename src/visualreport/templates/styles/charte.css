@@ -146,7 +146,12 @@ body {
   justify-content: center;
   padding: 56px 40px 120px;
 }
-main { width: 100%; max-width: var(--maxw); }
+/* `min-width: 0` is load-bearing: as a flex item, `main` defaults to
+   `min-width: auto`, which resolves to its widest content and beats `max-width`.
+   One unwrappable line — a long prompt line in a code fence, a wide table — then
+   widens the column instead of scrolling inside its own box, and the page gains a
+   horizontal scrollbar. */
+main { width: 100%; max-width: var(--maxw); min-width: 0; }
 /* Block wrappers are addressing, not layout: they must not add spacing of their
    own, so the margins of what they hold keep governing the rhythm. */
 .vr-b { margin: 0; }
@@ -188,9 +193,16 @@ code, kbd {
   font-family: var(--mono); font-size: .88em;
   background: var(--code-bg); padding: 1px 6px; border-radius: 5px;
 }
+/* Long lines wrap instead of scrolling: these pages carry as much prose in fences
+   — prompts, tool feedback, refusal messages — as they carry code, and a prompt
+   paragraph read through a horizontal scrollbar is unreadable. `pre-wrap` keeps
+   every space and every indent, so a code snippet still reads as code; only lines
+   wider than the column fold. `overflow-x` stays for what cannot fold at all (an
+   unbroken URL, a base64 blob). */
 .highlight pre, pre {
   background: #1e2230; color: #e6e8ef; padding: 16px 18px; border-radius: var(--radius);
   overflow-x: auto; font-size: 14px; line-height: 1.55;
+  white-space: pre-wrap; overflow-wrap: break-word;
 }
 pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
 /* Pygments tokens — code blocks keep a dark background in both themes */

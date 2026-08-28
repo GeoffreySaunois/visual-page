@@ -173,6 +173,12 @@ with the explicit instruction that every paragraph is carried word-for-word.
      with *Syntax error in text*, a `cols` label becomes prose atop the left column.
      The renderer **hard-fails** on this (naming the fix) for every fence except the
      ```diff one, whose verbatim body may legitimately contain such a line.
+   - **Long lines in a fence wrap, they don't scroll.** `pre` is `pre-wrap`, so a
+     prompt paragraph or a long refusal message folds inside its box and stays
+     readable; indentation is preserved, so code still reads as code. Nothing you
+     write in a fence can widen the page — `main` carries the `min-width: 0` that
+     stops an unwrappable child from beating its own `max-width`. Don't pre-break
+     long prose by hand to "make it fit".
    - **Escape hatch**: raw HTML passes through (`md_in_html`) for one-off layouts.
 3. **Render** with the CLI:
 
