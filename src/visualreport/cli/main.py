@@ -1,6 +1,7 @@
 """The `visual-report` command line.
 
     render    compiler une source markdown en page HTML
+    pdf       imprimer une page de l'archive en PDF (navigateur headless)
     refresh   régénérer des pages de l'archive avec les gabarits courants
     serve     démarrer le serveur local (requis pour commenter) et le tunnel
     status    état du serveur et du tunnel, et l'adresse publique de l'archive

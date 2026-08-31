@@ -88,6 +88,12 @@ class Archive:
         read = (archived_page(path) for path in sorted(self.root.glob("*.html")))
         return [page for page in read if page is not None]
 
+    def latest_page(self, document_id: str) -> Path | None:
+        """The most recent page of a document — what a PDF export prints, so an
+        already-published page can be turned into paper without a re-render."""
+        published = [page for page in self.pages() if page.document_id == document_id]
+        return published[-1].path if published else None
+
     def source_of(self, page: Path) -> Path:
         """The archived markdown source belonging to a rendered page."""
         return self.sources / (page.stem + ".md")

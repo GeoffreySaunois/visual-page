@@ -1,4 +1,5 @@
-"""`render` and `gallery` — turning a source into a page, and listing the archive."""
+"""`render`, `pdf` and `gallery` — turning a source into a page, putting a page on
+paper, and listing the archive."""
 
 from __future__ import annotations
 
@@ -7,9 +8,9 @@ import re
 import subprocess
 from pathlib import Path
 
-from .. import gallery, server
+from .. import gallery, pdf, server
 from ..document import SourceError
-from ..paths import default_archive
+from ..paths import Archive, default_archive
 from ..rendering import IterationMode, RenderOutcome, RenderRequest, render
 from . import console, serving
 
@@ -46,12 +47,24 @@ def add_parsers(subparsers: argparse._SubParsersAction) -> None:
         "adresses (nécessaire pour commenter)",
     )
     render_parser.add_argument("--no-index", action="store_true", help="ne pas régénérer la galerie")
+    render_parser.add_argument(
+        "--pdf",
+        action="store_true",
+        help="imprimer aussi la page en PDF, à côté d'elle dans l'archive",
+    )
     iteration = render_parser.add_mutually_exclusive_group()
     iteration.add_argument(
         "--diff", action="store_true", help="forcer le diff d'itération (erreur si pas de version précédente)"
     )
     iteration.add_argument("--no-diff", action="store_true", help="désactiver le diff d'itération")
     render_parser.set_defaults(handler=run_render)
+
+    pdf_parser = subparsers.add_parser("pdf", help="imprimer une page de l'archive en PDF")
+    pdf_parser.add_argument(
+        "document", help="identité du document (<kind>-<slug>) ou chemin d'une page"
+    )
+    pdf_parser.add_argument("-o", "--output", help="chemin du PDF (défaut : à côté de la page)")
+    pdf_parser.set_defaults(handler=run_pdf)
 
     gallery_parser = subparsers.add_parser("gallery", help="régénérer l'index de l'archive")
     gallery_parser.set_defaults(handler=run_gallery)
@@ -94,6 +107,10 @@ def report(outcome: RenderOutcome, archive, args: argparse.Namespace) -> None:
     if not args.no_index:
         index, count = gallery.rebuild(archive)
         console.say(f"galerie : {index} ({count} page(s))")
+    if args.pdf:
+        # A page that renders but does not print is still a page: a browser
+        # missing or refusing costs a warning, never the render.
+        print_page(outcome.page, output=None)
     open_page(outcome, archive, args)
 
 
@@ -120,6 +137,40 @@ def announce(local: str, tunnel: server.Tunnel | None, page: Path) -> None:
         return
     console.say(f"commentable (téléphone ou Mac) : {tunnel.page_url(page)}")
     console.say(f"en local sur ce Mac : {local}")
+
+
+def run_pdf(args: argparse.Namespace) -> None:
+    """Print a page the archive already holds. Re-rendering it just to get a PDF
+    would advance the document — a new iteration reference, threads re-homed —
+    so the export reads the published page and changes nothing."""
+    archive = default_archive()
+    page = page_to_print(archive, args.document)
+    if page is None:
+        console.fail(f"aucune page pour {args.document!r} dans {archive.root}")
+        return
+    if print_page(page, Path(args.output) if args.output else None) is None:
+        raise SystemExit(1)
+
+
+def page_to_print(archive: Archive, target: str) -> Path | None:
+    """The `pdf` argument is either the path of a page or a document identity,
+    in which case the document's most recent page is the one printed."""
+    candidate = Path(target)
+    if candidate.suffix == ".html" and candidate.is_file():
+        return candidate.resolve()
+    return archive.latest_page(target)
+
+
+def print_page(page: Path, output: Path | None) -> Path | None:
+    """Print a page and say where the PDF landed — None when it could not be
+    printed, the message already said why."""
+    try:
+        written = pdf.export(page, output or pdf.companion(page))
+    except pdf.PrintError as error:
+        console.warn(str(error))
+        return None
+    console.say(f"pdf : {written}")
+    return written
 
 
 def run_gallery(args: argparse.Namespace) -> None:
