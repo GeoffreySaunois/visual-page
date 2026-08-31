@@ -203,6 +203,8 @@ with the explicit instruction that every paragraph is carried word-for-word.
       no iteration diff, no comment writes.** Never reach for it to control the
       filename; that is `--kind`'s job.
     - `--diff` / `--no-diff` force or disable the iteration diff.
+    - `--pdf` also prints the page, next to it in the archive under the same
+      name — see **Printing a page**.
 4. **Review** the rendered page (structure, that every chart/diagram block compiled,
    every render warning fixed — a broken list or fence is a broken page), then tell
    the user the page's URL — the public one, see **Output** — plus the gallery path
@@ -244,6 +246,46 @@ An unauthenticated request to the public hostname answers **302** to the Access 
 — that is the guard working, not a breakage. The pair comes back at login through a
 launchd agent, so a reboot does not leave the phone on a 502. Setting any of this up
 on another machine, and what breaks it: `docs/remote-access.md`.
+
+## Printing a page
+
+Every page also exists on paper. One print stylesheet (`templates/styles/print.css`)
+decides what that looks like, and the three ways of getting a PDF all go through
+it, so they produce the same document:
+
+- **The `PDF` button** in the sidebar's control strip — it opens the browser's
+  print dialog, where *Enregistrer au format PDF* does the rest. It works on a
+  served page and on an archived file opened by double-click alike: no server,
+  nothing installed.
+- **`visual-report render SOURCE.md --kind KIND --pdf`** — prints as it renders,
+  beside the page in the archive and under the same name (`<kind>-<slug>-<date>.pdf`).
+- **`visual-report pdf <document>`** — prints a page the archive already holds,
+  without re-rendering it. Takes a document identity (`report-gym-costs`, whose
+  most recent page is printed) or the path of a page; `-o` writes the PDF
+  elsewhere. **Prefer it to re-rendering with `--pdf`**: a re-render advances the
+  document — a new iteration reference, threads re-homed — for what is only an
+  export.
+
+Both commands drive a **headless** browser (Google Chrome, Chromium, Edge or
+Brave, whichever is installed first): no window ever opens, and no dependency is
+added to the package. A machine with none of them still has the button. Printing
+a page that carries charts or diagrams costs a few seconds — the browser fetches
+the CDN libraries and lays the figures out before printing, which is exactly why
+the export is a browser and not a Python PDF engine: those figures are JavaScript,
+and any other renderer would print them empty.
+
+**What paper does to a page.** The stylesheet forces the light palette whatever
+theme the reader is in, drops everything that exists only to be clicked (the
+sidebar, the control strip, the comment rail and its bubble, the filmstrip's
+arrows), and keeps the small blocks whole across a page break. What a gesture
+would have revealed is opened for the print and put back after: a collapsed
+`???` annex is expanded, every tab panel is stacked under its own tab's title,
+every filmstrip slide is printed in sequence. A screenshot taller than the text
+block is scaled to fit one instead of being cut by the page edge.
+
+**What a PDF is not.** It is a snapshot to send or to file: the charts are flat,
+and the page's whole point — commenting — does not survive it. Whenever you
+expect feedback, hand over the URL and not the PDF.
 
 ## Iteration diff
 
@@ -427,4 +469,5 @@ comment stores and the running server's state for a cosmetic gain.
 - Looks intentional on first open: consistent spacing, the charte's accent color,
   dark mode working via `prefers-color-scheme`.
 - Every number on the page is traceable to the source; never invent data to fill a chart.
-- Prints cleanly (the template already handles `@media print`).
+- Prints cleanly — see *Printing a page*: the template handles `@media print`, and
+  `--pdf` (or the page's `PDF` button) turns it into a document to send or file.

@@ -21,6 +21,7 @@ set that up from scratch. `deploy/` carries the service definition itself.
 
 ```bash
 bin/visual-report render SOURCE.md --serve      # compile, serve, open commentable
+bin/visual-report pdf report-<slug>             # the published page, on paper
 bin/visual-report comments report-<slug>        # what is pending, as markdown
 bin/visual-report refresh --dry-run             # what a rebuild of the archive would touch
 uv run pytest                                   # the suite
@@ -66,6 +67,7 @@ src/visualreport/
   paths.py          the archive layout — the only module that knows the disk
   rendering.py      the pipeline: where document, iteration and comments meet
   refresh.py        replaying archived pages through today's templates, in place
+  pdf.py            a page on paper: a headless browser over the print stylesheet
   document/         markdown source ──► HTML page
     frontmatter.py    the YAML head, and the three documented fallbacks
     blocks.py         the top-level block splitter: THE unit everything aligns on
@@ -127,6 +129,7 @@ decorator, not rewriting the body again.
 | a style or a behavior | a file in `templates/styles` or `scripts`, one entry in `page.py`'s order tuple |
 | an API endpoint | `server/api.py` (domain logic belongs in `comments/`) |
 | a CLI command | a module in `cli/`, registered in `cli/main.py` |
+| what a page looks like on paper | `templates/styles/print.css`, and the print hooks in `scripts/page.js` for what a gesture hides |
 | a third background process | a `DetachedProcess` in `server/detached.py` + a module owning its command, state and probe |
 | a field on a thread | `comments/model.py` + bump `SCHEMA_VERSION` when it breaks reads, and migrate the files in `comments/` in the same change |
 
