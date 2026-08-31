@@ -40,6 +40,50 @@
     applyDiffGlyph();
   });
 
+  /* --- PDF export: the browser's print dialog over the print stylesheet ---- */
+  var pdfButton = document.getElementById("pdf-export");
+  if (pdfButton) pdfButton.addEventListener("click", function () { window.print(); });
+
+  /* Paper has no gestures: a PDF must never hide half the document behind a
+     collapsed annex, nor leave a stacked tab panel without the name of the tab
+     it came from. Both are undone after printing, so the screen is untouched. */
+  window.addEventListener("beforeprint", function () { openAnnexes(); titleTabs(); });
+  window.addEventListener("afterprint", function () { closeAnnexes(); untitleTabs(); });
+
+  var openedForPrint = [];
+  function openAnnexes() {
+    openedForPrint = Array.prototype.slice.call(
+      document.querySelectorAll("main details:not([open])")
+    );
+    openedForPrint.forEach(function (details) { details.open = true; });
+  }
+  function closeAnnexes() {
+    openedForPrint.forEach(function (details) { details.open = false; });
+    openedForPrint = [];
+  }
+
+  /* The print stylesheet stacks every panel of a tab set and drops the label
+     bar, which on paper points at nothing. Each panel therefore takes its own
+     tab's title along — paired by index, the way the stylesheet pairs them. */
+  function titleTabs() {
+    document.querySelectorAll(".tabbed-set").forEach(function (set) {
+      var labels = set.querySelectorAll(".tabbed-labels > label");
+      var panels = set.querySelectorAll(".tabbed-content > .tabbed-block");
+      panels.forEach(function (panel, index) {
+        if (!labels[index] || panel.querySelector(".tabbed-print-title")) return;
+        var title = document.createElement("div");
+        title.className = "tabbed-print-title";
+        title.textContent = labels[index].textContent;
+        panel.insertBefore(title, panel.firstChild);
+      });
+    });
+  }
+  function untitleTabs() {
+    document.querySelectorAll(".tabbed-print-title").forEach(function (title) {
+      title.remove();
+    });
+  }
+
   /* --- Reading progress bar ------------------------------------------------ */
   var bar = document.getElementById("progress");
   function updateProgress() {

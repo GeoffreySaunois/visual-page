@@ -1,20 +1,115 @@
 /* ===========================================================================
-   Print: the document only — no navigation, no controls, no comment layer.
+   Print: the document alone, on white paper — no navigation, no controls, no
+   comment layer, nothing that only exists to be clicked.
+
+   One sheet serves the three ways a page becomes a PDF: Cmd-P, the sidebar's
+   PDF button, and the CLI's `--pdf` driving a headless browser. They all print
+   the same document because they all print through here.
    =========================================================================== */
 
+@page {
+  size: A4;
+  margin: 16mm 15mm 18mm;
+}
+
 @media print {
+  /* --- Paper is white, whatever theme the reader was in -------------------
+     The dark palette would come out as ink over every page, and text drawn for
+     a dark ground prints unreadable on it. Redefining the tokens repaints the
+     whole document at once — every sheet before this one draws from them.
+     These selectors match the theme rules of charte.css exactly, and this file
+     is concatenated last, so equal specificity resolves in favor of paper. */
+  :root, [data-theme="dark"], [data-theme="auto"] {
+    color-scheme: light;
+    --bg:            #ffffff;
+    --surface:       #ffffff;
+    --text:          #14181f;
+    --text-soft:     #4b5563;
+    --border:        #cfcbc4;
+    --code-bg:       #f4f2ee;
+    --row-alt:       #f8f7f4;
+    --shadow:        none;
+    --accent:        #5b21b6;
+    --accent-strong: #4c1d95;
+    --teal:          #0d9488;
+    --amber:         #b45309;
+    --blue:          #1d4ed8;
+    --green:         #15803d;
+    --rose:          #be123c;
+    --vr-add:        #10d15c;
+    --vr-mod:        #ffa60a;
+    --vr-rem:        #ff2d63;
+  }
+
+  /* A browser drops backgrounds when printing, but every tinted ground on this
+     page carries meaning — a callout's type, a diff's sign, a role in a
+     transcript, an inserted run of words. The document opts back in wholesale;
+     the palette above is already light, so nothing turns into a block of ink. */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  html, body { background: #fff; }
+  body { font-size: 10.5pt; }
+
+  /* --- The page's own chrome, all of it interaction ----------------------- */
   .sidebar, .menu-btn, #progress, #theme-toggle, .side-controls,
-  #vr-panel, #vr-bubble { display: none; }
-  .content { padding: 0; }
-  mark.vr-anchor { background: none; box-shadow: none; }
+  #vr-panel, #vr-bubble, .filmstrip-nav, .filmstrip-count,
+  main .headerlink { display: none !important; }
+
+  /* The sidebar is gone, so the body takes the full sheet. */
+  .layout { display: block; }
+  .content { padding: 0; display: block; }
+  main { max-width: none; margin: 0; padding: 0; }
+
+  /* --- Nothing is hidden behind a gesture on paper ------------------------
+     Collapsibles are opened by the page script's `beforeprint` and closed again
+     after; the two blocks below are the same idea for the layouts CSS controls
+     — a reader holding a sheet cannot switch a tab or flip a slide. */
   main details { padding-bottom: 12px; }
+  main details > summary { break-after: avoid; }
   main details > summary::before { content: ""; }
-  .filetree, .kpi, .msg, .msg-annot, .cols .col, .diff-half, .fig-card { break-inside: avoid; }
-  main table.diff-table tr { break-inside: avoid; }
-  /* Tabs: print every panel stacked; the radio-driven label bar is meaningless on paper. */
+
   .tabbed-labels { display: none; }
   .tabbed-content > .tabbed-block {
     display: block; border-top: 1px dashed var(--border);
     padding-top: 10px; margin-top: 10px;
   }
+  /* The tab's own name, moved into its panel by the script — the label bar is
+     gone, and a stacked panel with no title says nothing about what it holds. */
+  .tabbed-print-title {
+    display: block; font-family: var(--mono); font-size: 12.5px; font-weight: 600;
+    color: var(--accent-strong); margin: 0 0 4px; break-after: avoid;
+  }
+
+  .filmstrip-slide { display: block; }
+  .filmstrip-slide + .filmstrip-slide { border-top: 1px dashed var(--border); }
+
+  /* --- Pagination --------------------------------------------------------
+     A heading never ends a sheet, a paragraph never leaves one line behind,
+     and no small self-contained box is cut in half. Long boxes (a transcript,
+     a file tree, a fifty-line fence) are left to break: refusing a break they
+     cannot avoid only pushes them onto a page they still overflow. */
+  main h2, main h3, main h4 { break-after: avoid; break-inside: avoid; }
+  p, li, blockquote { orphans: 3; widows: 3; }
+  .kpi, .fig-card, .cols .col, .diff-half, .ft-row, .msg, .msg-annot,
+  .admonition, .filmstrip-slide, .vr-changelog, main pre {
+    break-inside: avoid;
+  }
+  main table { break-inside: auto; }
+  main thead { display: table-header-group; }
+  main tr, main table.diff-table tr { break-inside: avoid; }
+
+  /* A screenshot taller than the text block would be cut by the page edge, so
+     it is scaled to fit one — width follows, the aspect ratio holds. */
+  main img, .filmstrip-slide img {
+    width: auto; height: auto; max-width: 100%; max-height: 19cm;
+    margin-left: auto; margin-right: auto; break-inside: avoid;
+  }
+
+  /* A canvas cannot reflow, so it is scaled to the sheet rather than clipped. */
+  .fig-card canvas, main canvas { max-width: 100%; height: auto; }
+  .mermaid svg { max-width: 100%; height: auto; }
+
+  /* Comment highlights are a working layer, not part of the document. */
+  mark.vr-anchor { background: none; box-shadow: none; }
+  .vr-b.vr-drifted { box-shadow: none; padding-left: 0; }
 }

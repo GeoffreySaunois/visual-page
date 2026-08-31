@@ -359,5 +359,8 @@ main .msg-tool-error pre.msg-body { background: color-mix(in srgb, var(--rose) 1
 .tabbed-set > input:nth-child(10):checked ~ .tabbed-content > .tabbed-block:nth-child(10) {
   display: block;
 }
+/* Written into each panel by the page script while printing, and removed after:
+   on screen the label bar already names the panels. */
+.tabbed-print-title { display: none; }
 .tabbed-block > :first-child { margin-top: 10px; }
 .tabbed-block > :last-child { margin-bottom: 0; }
