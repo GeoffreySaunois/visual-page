@@ -115,15 +115,15 @@ def report(outcome: RenderOutcome, archive, args: argparse.Namespace) -> None:
 
 
 def open_page(outcome: RenderOutcome, archive, args: argparse.Namespace) -> None:
-    """`--serve` opens the page through the server, which is the only way the
-    comment panel can write; `--open` alone opens the file directly."""
+    """`--serve` starts the server and prints the page's addresses, without
+    opening a browser — a render can happen many times per document (each
+    comment-loop iteration) and each one popping a window would steal focus.
+    `--open` alone opens the file directly, since it's a one-shot ask."""
     if args.serve:
         running = server.ensure_running(archive, server.DEFAULT_PORT)
         console.say(f"serveur : {running.url} (pid {running.pid})")
         local = running.page_url(outcome.page)
         announce(local, serving.publish(archive), outcome.page)
-        # The Mac opens the loopback address: same page, no Access round-trip.
-        subprocess.run(["open", local], check=False)
     elif args.open:
         subprocess.run(["open", str(outcome.page)], check=False)
 
