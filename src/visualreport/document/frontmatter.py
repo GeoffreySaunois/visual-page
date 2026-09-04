@@ -8,7 +8,9 @@ from datetime import date
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
+
+from .. import folders
 
 FRONT_MATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 
@@ -29,19 +31,31 @@ class ReportMeta(BaseModel):
     date: str
     slug: str
     lang: str
+    folder: str
+
+    @field_validator("folder")
+    @classmethod
+    def known_folder(cls, value: str) -> str:
+        """The folder is one of the taxonomy's, never an invention: the gallery
+        groups by it, and an unknown path would open a drawer of one."""
+        if folders.folder(value) is None:
+            raise ValueError(
+                f"dossier inconnu {value!r} — choisir parmi :\n{folders.describe()}"
+            )
+        return value
 
 
 def parse_source(text: str) -> tuple[ReportMeta, str]:
     """Split a source into its metadata and its body.
 
-    `title`, `eyebrow` and `subtitle` must be written by the author. `date`
-    defaults to today, `lang` to French, `slug` to a slugified title — the three
-    derivations the dialect documents.
+    `title`, `eyebrow`, `subtitle` and `folder` must be written by the author.
+    `date` defaults to today, `lang` to French, `slug` to a slugified title — the
+    three derivations the dialect documents.
     """
     match = FRONT_MATTER_RE.match(text)
     if not match:
         raise SourceError(
-            "missing YAML front matter (--- … ---) with title / eyebrow / subtitle"
+            "missing YAML front matter (--- … ---) with title / eyebrow / subtitle / folder"
         )
     fields = yaml.safe_load(match.group(1)) or {}
     if not isinstance(fields, dict):

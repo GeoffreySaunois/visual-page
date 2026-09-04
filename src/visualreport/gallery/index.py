@@ -1,7 +1,11 @@
-"""The gallery: every page in the archive, newest first, with what is pending on it.
+"""The gallery: every page in the archive, filed by section and folder, newest
+first within each, with what is pending on it.
 
-A card shows the count of open comments and flags the ones waiting on Claude, so
-the archive doubles as the queue of what is left to answer.
+The taxonomy (`folders.py`) gives the page its shape: one section per top-level
+folder, the pages filed directly in the section first, then one collapsible
+drawer per folder. Pages that name no folder gather in a trailing "À classer"
+section. A card shows the count of open comments and flags the ones waiting on
+Claude, so the archive doubles as the queue of what is left to answer.
 """
 
 from __future__ import annotations
@@ -9,6 +13,7 @@ from __future__ import annotations
 import html
 from pathlib import Path
 
+from .. import folders
 from ..branding import favicon_link
 from ..paths import Archive
 from .catalog import Entry, collect
@@ -25,20 +30,94 @@ def rebuild(archive: Archive) -> tuple[Path, int]:
 
 def render(entries: list[Entry]) -> str:
     if entries:
-        cards = "\n".join(card(entry) for entry in entries)
+        body = "\n".join(section(entry, entries) for entry in folders.sections())
+        body += unfiled_section(entries)
     else:
-        cards = '  <p class="empty">Aucune page. Rends-en une avec /visual.</p>'
-    plural = "s" if len(entries) != 1 else ""
-    pending = sum(entry.awaiting_agent for entry in entries)
-    count = f"{len(entries)} page{plural}"
-    if pending:
-        count += f" · {pending} commentaire(s) en attente de Claude"
+        body = '  <p class="empty">Aucune page. Rends-en une avec /visual.</p>'
     template = TEMPLATE_PATH.read_text(encoding="utf-8")
     return (
-        template.replace("{{CARDS}}", cards)
-        .replace("{{COUNT}}", html.escape(count))
+        template.replace("{{SECTIONS}}", body)
+        .replace("{{COUNT}}", html.escape(summary(entries)))
         .replace("{{FAVICON}}", favicon_link("gallery"))
     )
+
+
+def summary(entries: list[Entry]) -> str:
+    plural = "s" if len(entries) != 1 else ""
+    count = f"{len(entries)} page{plural}"
+    if pending := sum(entry.awaiting_agent for entry in entries):
+        count += f" · {pending} commentaire(s) en attente de Claude"
+    return count
+
+
+def section(root: folders.Folder, entries: list[Entry]) -> str:
+    """A top-level section: its loose pages, then a drawer per folder. A section
+    with nothing filed anywhere under it is not rendered at all."""
+    members = [entry for entry in entries if entry.folder.section == root.path]
+    if not members:
+        return ""
+    loose = [entry for entry in members if entry.folder == root]
+    drawers = "\n".join(drawer(child, members) for child in folders.folders_of(root))
+    return "\n".join(
+        [
+            f'  <section class="section" data-folder="{html.escape(root.path)}">',
+            f"    {section_heading(root, len(members))}",
+            grid(loose, root.path),
+            drawers,
+            "  </section>",
+        ]
+    )
+
+
+def section_heading(root: folders.Folder, count: int) -> str:
+    return (
+        f'<h2 class="section-title">{html.escape(root.label)} '
+        f'<span class="count" data-count>{count}</span></h2>'
+    )
+
+
+def drawer(child: folders.Folder, members: list[Entry]) -> str:
+    """One folder as a collapsible block; absent when nothing is filed in it."""
+    filed = [entry for entry in members if entry.folder == child]
+    if not filed:
+        return ""
+    pending = sum(entry.awaiting_agent for entry in filed)
+    badge = f'<span class="badge waiting">{pending} pour Claude</span>' if pending else ""
+    return "\n".join(
+        [
+            f'    <details class="folder" data-folder="{html.escape(child.path)}" open>',
+            "      <summary>",
+            f'        <span class="folder-name">{html.escape(child.label)}</span>',
+            f'        <span class="folder-hint">{html.escape(child.hint)}</span>',
+            f'        <span class="count" data-count>{len(filed)}</span>{badge}',
+            "      </summary>",
+            grid(filed, child.path),
+            "    </details>",
+        ]
+    )
+
+
+def unfiled_section(entries: list[Entry]) -> str:
+    """Pages rendered before folders existed, or whose folder left the taxonomy —
+    kept visible so they get filed, never silently hidden."""
+    loose = [entry for entry in entries if entry.folder == folders.UNFILED]
+    if not loose:
+        return ""
+    return "\n".join(
+        [
+            '\n  <section class="section unfiled" data-folder="">',
+            f"    {section_heading(folders.UNFILED, len(loose))}",
+            grid(loose, ""),
+            "  </section>",
+        ]
+    )
+
+
+def grid(filed: list[Entry], folder_path: str) -> str:
+    """The cards of one folder; an empty grid still exists so the script has
+    one container per folder, but renders nothing."""
+    cards = "\n".join(card(entry) for entry in filed)
+    return f'    <div class="grid" data-grid="{html.escape(folder_path)}">\n{cards}\n    </div>'
 
 
 def card(entry: Entry) -> str:

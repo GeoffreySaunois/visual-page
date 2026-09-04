@@ -65,6 +65,7 @@ the way to try things without touching `~/.claude/html-reports`.
 ```
 src/visualreport/
   paths.py          the archive layout — the only module that knows the disk
+  folders.py        the closed taxonomy of folders the gallery files pages under
   rendering.py      the pipeline: where document, iteration and comments meet
   refresh.py        replaying archived pages through today's templates, in place
   pdf.py            a page on paper: a headless browser over the print stylesheet
@@ -94,7 +95,7 @@ src/visualreport/
     detached.py       the lifecycle both background processes share
     daemon.py         the server process: its command, its state, its health check
     tunnel.py         the cloudflared tunnel: the config it reads, a page's public URL
-  gallery/          the archive index, with what is pending on each page
+  gallery/          the archive index, filed by folder, with what is pending on each page
   templates/        page.html, gallery.html, styles/*.css, scripts/*.js
 ```
 

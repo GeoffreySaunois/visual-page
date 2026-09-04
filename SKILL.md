@@ -110,12 +110,37 @@ with the explicit instruction that every paragraph is carried word-for-word.
    catalogued) just to fill the band. When no number is the story, ship no KPI cards;
    some genres ban the band outright.
 2. **Write the `.md` source** using the dialect:
-   - **Front matter** (required): `title`, `eyebrow`, `subtitle`; optional `date`
-     (default today), `slug` (default from title), `lang` (default `fr`). These feed
-     the `report-*` meta tags, the header, and the sidebar. The `slug` must **not**
+   - **Front matter** (required): `title`, `eyebrow`, `subtitle`, `folder`; optional
+     `date` (default today), `slug` (default from title), `lang` (default `fr`). These
+     feed the `report-*` meta tags, the header, and the sidebar. The `slug` must **not**
      repeat the kind (`slug: gym-steering`, never `plan-gym-steering`) — the filename
      and the document identity already prepend it. Keep it stable across iterations:
      it is what ties a page to its comments and to its previous version.
+   - **`folder`** is where the page files in the gallery — one path of the closed
+     taxonomy below, never an invention (the renderer refuses an unknown one and
+     prints the list). Decide it from **who the work is for**, then the theme:
+
+     | `folder` | what files there |
+     |---|---|
+     | `swaap` | Swaap work that fits none of the folders below |
+     | `swaap/gym` | the gym platform: projects, runs, thinker, reviewer, dashboard, LLM costs of runs |
+     | `swaap/trading` | searcher, HL strats, arb, rfq, backtester, prod incidents and digests |
+     | `swaap/infra` | CI, cluster, data platform, access, service quotas |
+     | `swaap/research` | models, providers, papers, literature reviews |
+     | `personal` | personal work that fits none of the folders below |
+     | `personal/azul` | the Azul product: plans, PR recaps, UI, QA, demos, pitch |
+     | `personal/travel` | roadbooks, lodging, activities |
+     | `personal/admin` | mail, reminders, paperwork |
+     | `personal/markets` | Polymarket, quant analyses outside Swaap |
+     | `personal/tooling` | Claude Code, skills, the visual archive, the machine |
+
+     A page about a Swaap repo, a Swaap service or a gym run is `swaap/…`; anything
+     Azul, or done for Geoffrey himself, is `personal/…`. Use the bare section
+     (`swaap`, `personal`) only when no folder fits — never to dodge the choice. Keep
+     the `folder` stable across iterations of a document; changing it moves every
+     dated page of the document once they are refreshed. The taxonomy lives in
+     `src/visualreport/folders.py`: a new theme dense enough to deserve a drawer is
+     one entry there.
    - **Headings**: `##` / `###` only (the h1 comes from front matter); they build the
      sidebar TOC.
    - **Callouts**: `!!! type "Title"` with the body indented 4 spaces. Types:
@@ -232,6 +257,17 @@ A **document** is `<kind>-<slug>` (e.g. `report-gym-costs`) — the identity tha
 stable across renders, and what comments and iterations are keyed on. The gallery
 reads each page's `<meta name="report-*">` tags and shows how many comments are
 open on it, flagging those waiting on Claude. To browse, `open ~/.claude/html-reports/`.
+
+**The gallery is filed by folder.** One section per top-level folder (*Swaap*,
+*Personal*), the pages filed directly in the section first, then a collapsible
+drawer per folder (`Gym`, `Azul`, …) in taxonomy order; search hides the drawers
+and sections left empty and opens the ones that still match, sorting reorders the
+cards inside each drawer, and a drawer closed by the reader stays closed across
+rebuilds. The folder comes from the page's `report-folder` meta tag, which the
+front matter `folder` feeds. A page carrying no such tag — rendered before folders
+existed — sits in a trailing *À classer* section until it is filed: add `folder:`
+to its archived source under `src/` and `visual-report refresh <document>`; a page
+whose source is not archived gets the meta tag written straight into its HTML.
 
 **Reaching it.** `visual-report serve` brings up two processes: the loopback server,
 and a cloudflared tunnel that publishes the same archive at the hostname read from

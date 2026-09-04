@@ -12,6 +12,7 @@ eyebrow: Test
 subtitle: Sous-titre
 slug: page-test
 lang: fr
+folder: swaap/gym
 ---
 
 ## Contexte

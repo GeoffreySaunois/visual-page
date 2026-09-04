@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import html
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -45,7 +46,11 @@ def render_page(meta: ReportMeta, content: PageContent) -> str:
         "EYEBROW": html.escape(meta.eyebrow),
         "DATE": html.escape(meta.date),
         "SUBTITLE": html.escape(meta.subtitle),
+        "FOLDER": html.escape(meta.folder),
         "DOCUMENT": html.escape(content.document_id),
+        # The Claude Code session that rendered this page, when run from inside
+        # one — lets the status line show only the current session's reports.
+        "SESSION": html.escape(os.environ.get("CLAUDE_CODE_SESSION_ID", "")),
         "FAVICON": favicon_link("page"),
         "TOC": render_toc(content.toc_tokens),
         "CONTENT": content.body,

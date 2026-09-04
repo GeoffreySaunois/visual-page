@@ -37,8 +37,27 @@
     background: none; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
   .sorts button:hover { color: var(--text); }
   .sorts button.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .section { margin-top: 40px; }
+  .section:first-of-type { margin-top: 0; }
+  .section-title { font-size: 22px; letter-spacing: -.02em; margin: 0 0 16px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 10px; }
+  .section.unfiled .section-title { color: var(--text-dim); }
+  .count[data-count] { color: var(--text-dim); font-size: 13px; font-weight: 500; }
+  .folder { margin-top: 20px; border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface-2); }
+  .folder summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 12px 18px;
+    cursor: pointer; list-style: none; user-select: none; }
+  .folder summary::-webkit-details-marker { display: none; }
+  .folder summary::before { content: "▸"; color: var(--text-dim); font-size: 13px; transition: transform .15s; }
+  .folder[open] summary::before { transform: rotate(90deg); }
+  .folder-name { font-weight: 700; font-size: 16px; }
+  .folder-hint { color: var(--text-dim); font-size: 13px; flex: 1 1 200px; }
+  .folder summary .badge { display: inline-block; font-size: 12px; font-weight: 600; color: var(--amber);
+    background: color-mix(in srgb, var(--amber) 15%, transparent); border-radius: 999px; padding: 2px 10px; }
+  .folder .grid { padding: 4px 16px 16px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-  .card.hidden { display: none; }
+  .grid:empty { display: none; }
+  .card.hidden, .folder.hidden, .section.hidden { display: none; }
   .no-results { color: var(--text-dim); display: none; }
   .card { display: block; background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 20px 22px; text-decoration: none; color: inherit;
@@ -70,17 +89,21 @@
       <button data-sort="title">A–Z</button>
     </div>
   </div>
-  <div class="grid" id="grid">
-{{CARDS}}
+  <div id="archive">
+{{SECTIONS}}
   </div>
   <p class="no-results" id="noResults">Aucune page ne correspond.</p>
 </div>
 <script>
-  const grid = document.getElementById("grid");
-  const cards = Array.from(grid.querySelectorAll(".card"));
+  const archive = document.getElementById("archive");
+  const grids = Array.from(archive.querySelectorAll(".grid"));
+  const cards = Array.from(archive.querySelectorAll(".card"));
+  const folders = Array.from(archive.querySelectorAll(".folder"));
+  const sections = Array.from(archive.querySelectorAll(".section"));
   const search = document.getElementById("search");
   const noResults = document.getElementById("noResults");
   const sorts = document.getElementById("sorts");
+  const COLLAPSED_KEY = "vr-gallery-collapsed";
 
   const comparators = {
     "date": (a, b) => b.dataset.date.localeCompare(a.dataset.date),
@@ -89,10 +112,17 @@
     "title": (a, b) => a.dataset.title.localeCompare(b.dataset.title),
   };
 
+  // Sorting happens inside each folder: the sections and drawers keep the
+  // taxonomy's order, only the cards within them move.
   function applySort(key) {
-    cards.slice().sort(comparators[key]).forEach(card => grid.appendChild(card));
+    grids.forEach(grid => {
+      Array.from(grid.querySelectorAll(".card")).sort(comparators[key]).forEach(card => grid.appendChild(card));
+    });
   }
 
+  // A query hides the cards that miss, then every drawer and section left with
+  // nothing visible; a drawer that still holds a match opens so it can be seen,
+  // and the counts follow the visible cards.
   function applyFilter() {
     const query = search.value.trim().toLowerCase();
     let visible = 0;
@@ -101,8 +131,38 @@
       card.classList.toggle("hidden", !match);
       if (match) visible++;
     });
+    folders.forEach(folder => {
+      const shown = folder.querySelectorAll(".card:not(.hidden)").length;
+      folder.classList.toggle("hidden", shown === 0);
+      folder.querySelector("[data-count]").textContent = shown;
+      if (query && shown) folder.open = true;
+      if (!query) folder.open = !collapsed().has(folder.dataset.folder);
+    });
+    sections.forEach(section => {
+      const shown = section.querySelectorAll(".card:not(.hidden)").length;
+      section.classList.toggle("hidden", shown === 0);
+      section.querySelector("[data-count]").textContent = shown;
+    });
     noResults.style.display = visible ? "none" : "block";
   }
+
+  // Which drawers the reader closed, remembered across rebuilds of the gallery.
+  function collapsed() {
+    try { return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY) || "[]")); }
+    catch (_) { return new Set(); }
+  }
+
+  function rememberCollapsed(folder) {
+    if (search.value.trim()) return;
+    const set = collapsed();
+    folder.open ? set.delete(folder.dataset.folder) : set.add(folder.dataset.folder);
+    try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(Array.from(set))); } catch (_) {}
+  }
+
+  folders.forEach(folder => {
+    folder.open = !collapsed().has(folder.dataset.folder);
+    folder.addEventListener("toggle", () => rememberCollapsed(folder));
+  });
 
   sorts.addEventListener("click", event => {
     const button = event.target.closest("button[data-sort]");

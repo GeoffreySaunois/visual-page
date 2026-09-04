@@ -78,7 +78,7 @@ def test_a_rebuild_never_moves_a_thread(published: Path, archive: Archive, sourc
         )
     archive.source_of(published).write_text(
         "---\ntitle: Une page de test\neyebrow: Test\nsubtitle: Sous-titre\n"
-        "slug: page-test\nlang: fr\n---\n\n## Contexte\n\nUn seul bloc.\n",
+        "slug: page-test\nlang: fr\nfolder: swaap/gym\n---\n\n## Contexte\n\nUn seul bloc.\n",
         encoding="utf-8",
     )
     refresh.run(archive, DOCUMENT)
