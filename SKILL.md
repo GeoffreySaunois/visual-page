@@ -258,16 +258,19 @@ stable across renders, and what comments and iterations are keyed on. The galler
 reads each page's `<meta name="report-*">` tags and shows how many comments are
 open on it, flagging those waiting on Claude. To browse, `open ~/.claude/html-reports/`.
 
-**The gallery is filed by folder.** One section per top-level folder (*Swaap*,
-*Personal*), the pages filed directly in the section first, then a collapsible
-drawer per folder (`Gym`, `Azul`, …) in taxonomy order; search hides the drawers
-and sections left empty and opens the ones that still match, sorting reorders the
-cards inside each drawer, and a drawer closed by the reader stays closed across
-rebuilds. The folder comes from the page's `report-folder` meta tag, which the
-front matter `folder` feeds. A page carrying no such tag — rendered before folders
-existed — sits in a trailing *À classer* section until it is filed: add `folder:`
-to its archived source under `src/` and `visual-report refresh <document>`; a page
-whose source is not archived gets the meta tag written straight into its HTML.
+**The gallery browses like a file system.** One directory on screen at a time: the
+root shows the sections (*Swaap*, *Personal*) as folder tiles, a section shows its
+folders as tiles then the pages filed directly in it, a folder shows its pages. A
+breadcrumb climbs back up, and the URL hash names the directory (`#/swaap/gym`), so
+a folder can be bookmarked and the back button leaves it. Each tile totals the pages
+underneath and the comments waiting on Claude. Search is global: it flattens the
+whole archive into one list, each page labeled with its folder, and clearing it
+returns to the directory. Sorting reorders the cards inside the current directory.
+The folder comes from the page's `report-folder` meta tag, which the front matter
+`folder` feeds. A page carrying no such tag — rendered before folders existed — sits
+in an *À classer* tile at the root until it is filed: add `folder:` to its archived
+source under `src/` and `visual-report refresh <document>`; a page whose source is
+not archived gets the meta tag written straight into its HTML.
 
 **Reaching it.** `visual-report serve` brings up two processes: the loopback server,
 and a cloudflared tunnel that publishes the same archive at the hostname read from

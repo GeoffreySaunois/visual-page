@@ -32,7 +32,11 @@ class Folder:
 
 
 TAXONOMY: tuple[Folder, ...] = (
-    Folder("swaap", "Swaap", "le travail Swaap qui ne relève d'aucun dossier ci-dessous"),
+    Folder(
+        "swaap",
+        "Swaap",
+        "le travail au bureau : gym, trading, infra, veille — ou ce qui n'entre dans aucun de ces dossiers",
+    ),
     Folder(
         "swaap/gym",
         "Gym",
@@ -53,7 +57,11 @@ TAXONOMY: tuple[Folder, ...] = (
         "Veille & recherche",
         "modèles, providers, papers, revues de littérature",
     ),
-    Folder("personal", "Personal", "le perso qui ne relève d'aucun dossier ci-dessous"),
+    Folder(
+        "personal",
+        "Personal",
+        "Azul, voyages, organisation, marchés, outillage — ou ce qui n'entre dans aucun de ces dossiers",
+    ),
     Folder(
         "personal/azul",
         "Azul",
@@ -69,7 +77,9 @@ TAXONOMY: tuple[Folder, ...] = (
     ),
 )
 
-UNFILED = Folder("", "À classer", "pages rendues avant que la galerie ait des dossiers")
+# Not a taxonomy entry: nothing can be filed there on purpose, it is only where
+# the gallery shelves a page whose folder tag is missing or unknown.
+UNFILED = Folder("a-classer", "À classer", "pages rendues avant que la galerie ait des dossiers")
 
 BY_PATH: dict[str, Folder] = {folder.path: folder for folder in TAXONOMY}
 

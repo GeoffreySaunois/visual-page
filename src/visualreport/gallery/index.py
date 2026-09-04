@@ -1,11 +1,16 @@
-"""The gallery: every page in the archive, filed by section and folder, newest
-first within each, with what is pending on it.
+"""The gallery: the archive browsed like a file system.
 
-The taxonomy (`folders.py`) gives the page its shape: one section per top-level
-folder, the pages filed directly in the section first, then one collapsible
-drawer per folder. Pages that name no folder gather in a trailing "À classer"
-section. A card shows the count of open comments and flags the ones waiting on
-Claude, so the archive doubles as the queue of what is left to answer.
+One directory is on screen at a time — the root shows the sections (*Swaap*,
+*Personal*) as folder tiles, a section shows its folders as tiles and then the
+pages filed directly in it, a folder shows its pages. The URL hash carries the
+current directory (`#/swaap/gym`), so a directory can be bookmarked and the
+back button climbs out of it. Every directory is rendered into the page and the
+script reveals the current one; the page stays one static file. Search flattens
+all of it into one result list, each page labeled with its folder.
+
+A card shows the count of open comments and flags the ones waiting on Claude,
+and a tile totals what is pending underneath it, so the archive doubles as the
+queue of what is left to answer.
 """
 
 from __future__ import annotations
@@ -30,13 +35,12 @@ def rebuild(archive: Archive) -> tuple[Path, int]:
 
 def render(entries: list[Entry]) -> str:
     if entries:
-        body = "\n".join(section(entry, entries) for entry in folders.sections())
-        body += unfiled_section(entries)
+        body = "\n".join(directory(node, entries) for node in directories(entries))
     else:
         body = '  <p class="empty">Aucune page. Rends-en une avec /visual.</p>'
     template = TEMPLATE_PATH.read_text(encoding="utf-8")
     return (
-        template.replace("{{SECTIONS}}", body)
+        template.replace("{{DIRECTORIES}}", body)
         .replace("{{COUNT}}", html.escape(summary(entries)))
         .replace("{{FAVICON}}", favicon_link("gallery"))
     )
@@ -50,74 +54,103 @@ def summary(entries: list[Entry]) -> str:
     return count
 
 
-def section(root: folders.Folder, entries: list[Entry]) -> str:
-    """A top-level section: its loose pages, then a drawer per folder. A section
-    with nothing filed anywhere under it is not rendered at all."""
-    members = [entry for entry in entries if entry.folder.section == root.path]
-    if not members:
-        return ""
-    loose = [entry for entry in members if entry.folder == root]
-    drawers = "\n".join(drawer(child, members) for child in folders.folders_of(root))
+ROOT = folders.Folder("", "Archive", "")
+
+
+def directories(entries: list[Entry]) -> list[folders.Folder]:
+    """Every directory the page can show: the root, each taxonomy node that has
+    something under it, and the unfiled shelf when a page needs it."""
+    nodes = [ROOT] + [node for node in folders.TAXONOMY if under(node, entries)]
+    if any(entry.folder == folders.UNFILED for entry in entries):
+        nodes.append(folders.UNFILED)
+    return nodes
+
+
+def under(node: folders.Folder, entries: list[Entry]) -> list[Entry]:
+    """The pages filed in `node` or in any folder nested under it."""
+    if node is ROOT:
+        return entries
+    if node is folders.UNFILED:
+        return [entry for entry in entries if entry.folder == folders.UNFILED]
+    if node.is_section:
+        return [entry for entry in entries if entry.folder.section == node.path]
+    return [entry for entry in entries if entry.folder == node]
+
+
+def children(node: folders.Folder, entries: list[Entry]) -> list[folders.Folder]:
+    """The tiles a directory shows: the sections at the root (plus the unfiled
+    shelf when it exists), a section's folders, nothing inside a folder."""
+    if node is ROOT:
+        shelves = folders.sections()
+        if any(entry.folder == folders.UNFILED for entry in entries):
+            shelves = shelves + [folders.UNFILED]
+        return [shelf for shelf in shelves if under(shelf, entries)]
+    if node.is_section and node is not folders.UNFILED:
+        return [child for child in folders.folders_of(node) if under(child, entries)]
+    return []
+
+
+def directory(node: folders.Folder, entries: list[Entry]) -> str:
+    """One directory: its breadcrumb, its folder tiles, then its own pages."""
+    own = [entry for entry in entries if entry.folder == node] if node is not ROOT else []
+    tiles = "\n".join(tile(child, entries) for child in children(node, entries))
+    path = html.escape(node.path)
     return "\n".join(
         [
-            f'  <section class="section" data-folder="{html.escape(root.path)}">',
-            f"    {section_heading(root, len(members))}",
-            grid(loose, root.path),
-            drawers,
+            f'  <section class="dir" data-path="{path}" hidden>',
+            f"    {breadcrumb(node)}",
+            f'    <div class="tiles">\n{tiles}\n    </div>' if tiles else "",
+            f'    <p class="dir-label">{html.escape(location(node))}</p>',
+            grid(own),
             "  </section>",
         ]
     )
 
 
-def section_heading(root: folders.Folder, count: int) -> str:
-    return (
-        f'<h2 class="section-title">{html.escape(root.label)} '
-        f'<span class="count" data-count>{count}</span></h2>'
-    )
+def breadcrumb(node: folders.Folder) -> str:
+    """`Archive › Swaap › Gym`, every ancestor a link to its own directory."""
+    trail = ['<a href="#/">Archive</a>']
+    if node is not ROOT:
+        if not node.is_section:
+            section = folders.folder(node.section)
+            assert section is not None
+            trail.append(
+                f'<a href="#/{html.escape(section.path)}">{html.escape(section.label)}</a>'
+            )
+        trail.append(f"<span>{html.escape(node.label)}</span>")
+    return '<nav class="crumbs">' + " <i>›</i> ".join(trail) + "</nav>"
 
 
-def drawer(child: folders.Folder, members: list[Entry]) -> str:
-    """One folder as a collapsible block; absent when nothing is filed in it."""
-    filed = [entry for entry in members if entry.folder == child]
-    if not filed:
+def location(node: folders.Folder) -> str:
+    """Where a directory's own pages sit, as the search results label them."""
+    if node is ROOT:
         return ""
+    if node.is_section:
+        return node.label
+    section = folders.folder(node.section)
+    return f"{section.label if section else node.section} › {node.label}"
+
+
+def tile(child: folders.Folder, entries: list[Entry]) -> str:
+    filed = under(child, entries)
     pending = sum(entry.awaiting_agent for entry in filed)
     badge = f'<span class="badge waiting">{pending} pour Claude</span>' if pending else ""
+    plural = "s" if len(filed) != 1 else ""
     return "\n".join(
         [
-            f'    <details class="folder" data-folder="{html.escape(child.path)}" open>',
-            "      <summary>",
-            f'        <span class="folder-name">{html.escape(child.label)}</span>',
-            f'        <span class="folder-hint">{html.escape(child.hint)}</span>',
-            f'        <span class="count" data-count>{len(filed)}</span>{badge}',
-            "      </summary>",
-            grid(filed, child.path),
-            "    </details>",
+            f'      <a class="tile" href="#/{html.escape(child.path)}">',
+            '        <span class="tile-icon" aria-hidden="true"></span>',
+            f'        <span class="tile-name">{html.escape(child.label)}</span>',
+            f'        <span class="tile-hint">{html.escape(child.hint)}</span>',
+            f'        <span class="tile-count">{len(filed)} page{plural}{badge}</span>',
+            "      </a>",
         ]
     )
 
 
-def unfiled_section(entries: list[Entry]) -> str:
-    """Pages rendered before folders existed, or whose folder left the taxonomy —
-    kept visible so they get filed, never silently hidden."""
-    loose = [entry for entry in entries if entry.folder == folders.UNFILED]
-    if not loose:
-        return ""
-    return "\n".join(
-        [
-            '\n  <section class="section unfiled" data-folder="">',
-            f"    {section_heading(folders.UNFILED, len(loose))}",
-            grid(loose, ""),
-            "  </section>",
-        ]
-    )
-
-
-def grid(filed: list[Entry], folder_path: str) -> str:
-    """The cards of one folder; an empty grid still exists so the script has
-    one container per folder, but renders nothing."""
+def grid(filed: list[Entry]) -> str:
     cards = "\n".join(card(entry) for entry in filed)
-    return f'    <div class="grid" data-grid="{html.escape(folder_path)}">\n{cards}\n    </div>'
+    return f'    <div class="grid">\n{cards}\n    </div>'
 
 
 def card(entry: Entry) -> str:

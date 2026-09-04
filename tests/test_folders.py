@@ -49,11 +49,13 @@ def test_the_gallery_shelves_a_page_in_its_folder_and_the_tagless_ones_apart(
     gallery.rebuild(archive)
     index = archive.index.read_text(encoding="utf-8")
 
-    swaap = index.index('data-folder="swaap"')
-    gym = index.index('data-folder="swaap/gym"')
+    gym = index.index('data-path="swaap/gym"')
     filed = index.index("Une page de test")
-    unfiled = index.index('class="section unfiled"')
+    unfiled = index.index('data-path="a-classer"')
     old = index.index("Une vieille page")
-    assert swaap < gym < filed < unfiled < old
-    # Nothing is filed under Personal, so that section does not exist on the page.
-    assert 'data-folder="personal"' not in index
+    assert gym < filed < unfiled < old
+    # The root offers Swaap and the shelf as tiles, Swaap offers its Gym folder.
+    assert 'href="#/swaap"' in index and 'href="#/a-classer"' in index
+    assert 'href="#/swaap/gym"' in index
+    # Nothing is filed under Personal, so neither its tile nor its directory exists.
+    assert "#/personal" not in index and 'data-path="personal"' not in index
