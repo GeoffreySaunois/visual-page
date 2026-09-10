@@ -527,6 +527,9 @@
     var found = locate(block, thread.anchor.quote);
     if (!found) return block.classList.add("vr-drifted");
     found.forEach(function (node) {
+      // Inter-cell whitespace participates in quote matching, but wrapping it
+      // creates anonymous table cells and rows that displace the real content.
+      if (node.parentElement.matches("table, thead, tbody, tfoot, tr, colgroup")) return;
       var mark = document.createElement("mark");
       mark.className = "vr-anchor" + (thread.is_open ? "" : " resolved");
       mark.setAttribute("data-thread", thread.id);
