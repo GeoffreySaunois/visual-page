@@ -172,3 +172,8 @@ re-homing across edits (moved / rewritten / deleted), thread lifecycle and store
 round-trip, and the render pipeline end to end. The HTTP layer is thin wiring over
 that logic and is exercised by hand (`curl`, and a playwright script driving the
 real panel) rather than by change-detector tests.
+
+`node tests/browser/comment-highlights.cjs` checks multi-cell and overlapping
+annotations in headless Chrome at desktop and phone widths. It requires Playwright
+available to Node (via `NODE_PATH` if provided by the environment) and Chrome.
+It renders into a temporary archive and never changes the user's reports.
