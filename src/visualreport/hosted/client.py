@@ -26,6 +26,7 @@ def exchange(origin: str, token: str, path: str, payload: dict, method: str) -> 
         data=json.dumps(payload).encode(),
         headers={
             "Content-Type": "application/json",
+            "User-Agent": "visual-report/0.2",
             "Origin": origin,
             "Cookie": f"CF_Authorization={token}",
             "Cf-Access-Jwt-Assertion": token,
