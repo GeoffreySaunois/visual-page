@@ -66,12 +66,12 @@ Cloudflare login: `export ARTEFACTS_ACCESS_JWT="$(cloudflared access token --app
 CLI requests refuse redirects to prevent credential forwarding.
 
 ```sh
-uv run python -m visualreport.hosted.publish \
+uv run --frozen python -m visualreport.hosted.publish \
   --origin https://artefacts.saunois.xyz \
   --page /absolute/path/report-demo-2026-09-21.html \
   --source /absolute/path/report-demo-2026-09-21.md --title 'Demo'
 
-uv run python -m visualreport.hosted.share \
+uv run --frozen python -m visualreport.hosted.share \
   --origin https://artefacts.saunois.xyz \
   --document report-demo --email alice@acme.fr --role commenter
 ```
@@ -105,8 +105,9 @@ attachments need a future owner-controlled publication route with report ACLs.
 ## Validation
 
 ```sh
-uv run pytest -q
-uv run ruff check src/visualreport/hosted tests/test_hosted.py
+uv run --frozen pytest -q
+node --test tests/proxy.test.mjs
+uv run --frozen ruff check src/visualreport/hosted tests/test_hosted.py
 terraform -chdir=deploy/gcp init -backend=false -input=false
 terraform -chdir=deploy/gcp fmt -check
 terraform -chdir=deploy/gcp validate
