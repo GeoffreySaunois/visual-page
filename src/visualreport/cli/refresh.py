@@ -6,7 +6,7 @@ import argparse
 
 from .. import gallery, refresh
 from ..paths import default_archive
-from . import console
+from . import console, remote
 
 
 def add_parsers(subparsers: argparse._SubParsersAction) -> None:
@@ -25,6 +25,11 @@ def add_parsers(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         help="lister ce qui serait réécrit, sans toucher à un seul fichier",
     )
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        help="publier les pages régénérées sur Artefacts",
+    )
     parser.set_defaults(handler=run_refresh)
 
 
@@ -36,6 +41,12 @@ def run_refresh(args: argparse.Namespace) -> None:
     outcome = refresh.run(archive, args.document)
     for rewritten in outcome.rewritten:
         console.say(f"  {rewritten.page.path.name}")
+        if args.serve:
+            console.say(
+                remote.publish(
+                    rewritten.page.path, archive.source_of(rewritten.page.path), False
+                )
+            )
         for warning in rewritten.warnings:
             console.warn(f"{rewritten.page.path.name} : {warning}")
     console.say(f"régénérées : {len(outcome.rewritten)} page(s)")

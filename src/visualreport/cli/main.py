@@ -1,17 +1,17 @@
 """The `visual-report` command line.
 
-    render    compiler une source markdown en page HTML
-    pdf       imprimer une page de l'archive en PDF (navigateur headless)
-    refresh   régénérer des pages de l'archive avec les gabarits courants
-    serve     démarrer le serveur local (requis pour commenter) et le tunnel
-    status    état du serveur et du tunnel, et l'adresse publique de l'archive
-    stop      arrêter le serveur et le tunnel
-    comments  afficher les fils d'un document
-    comment   ouvrir un fil (avec --quote pour viser un passage)
-    reply     répondre dans un fil
-    resolve   résoudre un fil
-    reopen    réouvrir un fil
-    gallery   régénérer l'index de l'archive
+render    compiler une source markdown en page HTML
+pdf       imprimer une page de l'archive en PDF (navigateur headless)
+refresh   régénérer des pages de l'archive avec les gabarits courants
+serve     démarrer un aperçu local explicite
+status    état du serveur local
+stop      arrêter le serveur local
+comments  afficher les fils d'un document
+comment   ouvrir un fil (avec --quote pour viser un passage)
+reply     répondre dans un fil
+resolve   résoudre un fil
+reopen    réouvrir un fil
+gallery   régénérer l'index de l'archive
 """
 
 from __future__ import annotations
@@ -40,5 +40,5 @@ def main() -> None:
     args = build_parser().parse_args()
     try:
         args.handler(args)
-    except CommentError as error:
+    except (CommentError, RuntimeError) as error:
         console.fail(str(error))

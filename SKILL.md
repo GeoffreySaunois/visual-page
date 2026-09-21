@@ -124,6 +124,7 @@ with the explicit instruction that every paragraph is carried word-for-word.
      |---|---|
      | `swaap` | Swaap work that fits none of the folders below |
      | `swaap/gym` | the gym platform: projects, runs, thinker, reviewer, dashboard, LLM costs of runs |
+     | `swaap/gym/lab` | Gym Lab: vision produit, architecture, implémentation et recette |
      | `swaap/trading` | searcher, HL strats, arb, rfq, backtester, prod incidents and digests |
      | `swaap/infra` | CI, cluster, data platform, access, service quotas |
      | `swaap/research` | models, providers, papers, literature reviews |
@@ -214,11 +215,10 @@ with the explicit instruction that every paragraph is carried word-for-word.
     Output is `~/.claude/html-reports/<kind>-<slug>-<date>.html`; the source is
     archived so the page can be re-rendered later; the gallery is rebuilt
     (`--no-index` to skip). Flags:
-    - `--serve` starts the local server *and the tunnel* if needed, opens the page
-      over http and prints its two addresses — **the only mode where Geoffrey can
-      comment**, so prefer it always. The public one (`https://…`, gated by
-      Cloudflare Access) is what he opens on his phone; the loopback one is the
-      Mac's, and the only one printed when the machine has no tunnel configured.
+    - `--serve` publishes the commentable page to **https://artefacts.saunois.xyz**
+      and prints its HTTPS URL. It starts no local server or reverse tunnel.
+      Authenticate with `cloudflared access login https://artefacts.saunois.xyz`
+      when the cached Access session expires. `--local` explicitly selects a local preview.
     - `--open` just opens the file; the comment panel is then read-only.
     - `--kind {report|plan|recap|uidiff}` picks the page family: it decides the
       filename **and the document identity**, so it is what carries a page's
@@ -250,7 +250,6 @@ src/<kind>-<slug>-<date>.md    the sources, kept for re-renders
 src/.last-rendered/<doc>.md    the version the next iteration diff compares to
 comments/<doc>.json            the comment threads
 logs/server.log  .server.json  the local server
-logs/tunnel.log  .tunnel.json  the tunnel publishing the archive
 ```
 
 A **document** is `<kind>-<slug>` (e.g. `report-gym-costs`) — the identity that is
@@ -269,22 +268,14 @@ returns to the directory. Sorting reorders the cards inside the current director
 The folder comes from the page's `report-folder` meta tag, which the front matter
 `folder` feeds. A page carrying no such tag — rendered before folders existed — sits
 in an *À classer* tile at the root until it is filed: add `folder:` to its archived
-source under `src/` and `visual-report refresh <document>`; a page whose source is
+source under `src/` and `visual-report refresh <document> --serve`; a page whose source is
 not archived gets the meta tag written straight into its HTML.
 
-**Reaching it.** `visual-report serve` brings up two processes: the loopback server,
-and a cloudflared tunnel that publishes the same archive at the hostname read from
-`~/.cloudflared/config.yml`, behind Cloudflare Access (e-mail OTP). `status` reports
-both plus the public address, `stop` ends both. The tunnel is opt-in by the presence
-of that config: without it — or without `cloudflared` — the engine serves locally
-and says nothing about a tunnel. A tunnel that fails to start is a warning and never
-stops `serve`. Diagnostics: `logs/tunnel.log` in the archive; a `cloudflared` started
-outside the engine is invisible to `status` and holds the metrics port, so
-`pkill -f "cloudflared tunnel run"` then `visual-report stop && visual-report serve`.
-An unauthenticated request to the public hostname answers **302** to the Access login
-— that is the guard working, not a breakage. The pair comes back at login through a
-launchd agent, so a reboot does not leave the phone on a 502. Setting any of this up
-on another machine, and what breaks it: `docs/remote-access.md`.
+**Reaching it.** The gallery is **https://artefacts.saunois.xyz**. Cloudflare Access
+verifies email ownership; the hosted backend enforces permissions per report.
+`render --serve` publishes remotely, and comment CLI commands read/write the hosted
+store by default. No local daemon, login agent or reverse tunnel is required.
+`visual-report serve` is an explicit local preview only. See `docs/remote-access.md`.
 
 ## Printing a page
 
@@ -374,8 +365,8 @@ recognizably similar, otherwise it counts as a removal plus an addition.
 
 A page is a place to work, not a deliverable to admire. Geoffrey highlights a
 passage and comments on it; you answer in the thread, fix the source, re-render.
-Comments live in `~/.claude/html-reports/comments/<document>.json` — outside any
-repo, and independent of the pages, so they survive every re-render. Every genre
+Hosted comments live in Firestore, independently of the pages, and survive every
+publication. Local `comments/<document>.json` files are migration backups or preview data. Every genre
 gets this: a plan is approved through its threads, a recap is challenged in them.
 
 **In the page.** Select any text → *Commenter* → the thread opens in the right rail
@@ -384,9 +375,8 @@ exchange, is replied to and resolved (hidden from the default view, reopenable);
 each message carries a **⋮** menu to *rewrite* it (it is then marked `modifié`) or
 *delete* it — deleting the last message of a thread deletes the thread. Filters:
 *Ouverts* / *Résolus* / *Tous*. **Writing requires the served page** — always hand
-over a page with `--serve` if you expect feedback, over either of its addresses:
-the public one goes through the tunnel to the same server, so commenting works
-identically from the phone. A page opened as a plain file still shows every thread,
+over the hosted page published with `--serve` if you expect feedback. It is
+commentable on both phone and desktop. A page opened as a plain file still shows every thread,
 read-only.
 
 **From the terminal** (`bin/visual-report`, `<document>` is `<kind>-<slug>`):
@@ -431,10 +421,10 @@ the digest shows the *current* wording); a thread whose block disappeared is
 **Checking the phone rendering, headlessly.** The panel is a bottom sheet under
 720px, and that layout is verified locally through the **Playwright MCP** — no
 dependency is added to the package, the tooling lives in the session. Drive a
-*served* page (`visual-report status` prints the loopback address):
+*hosted* page using an authenticated browser session:
 
 1. `browser_resize` **390×844**, then `browser_navigate` to
-   `http://127.0.0.1:<port>/<page>.html`. After a re-render, append a
+   the HTTPS page URL printed by `render --serve`. After a re-render, append a
    cache-buster (`?v=2`) — Chrome otherwise replays the previous file and you
    review the old script. Re-`browser_resize` after any navigation hiccup: a
    reset viewport silently puts you back on the desktop layout.
@@ -464,16 +454,9 @@ page + the gallery path. No re-narration of the content — the page *is* the co
 now. When the page was rendered as an iteration diff, add that it shows the changes
 since the previous version (toggle in the sidebar).
 
-**Which URL.** A served page has two, both printed by `render --serve`, and the
-rule is to hand over the one he can open anywhere:
-
-1. the **public** one (`https://…/<page>.html`) — the tunnel's, readable and
-   commentable from his phone as well as the Mac. Give this one, alone;
-2. the **loopback** one (`http://127.0.0.1:…/<page>.html`) — cite it only when
-   `render --serve` printed no public URL, which means no tunnel is up.
-
-Never hand over the file path for a served page: it is the one address that cannot
-be commented on.
+**Which URL.** Share the HTTPS URL printed by `render --serve`, plus the hosted
+gallery https://artefacts.saunois.xyz. Never substitute a local file or loopback
+address for a published page. Local previews are for explicitly requested debugging.
 
 When you answered comments, say which threads you replied to — they all stay open
 for Geoffrey to resolve — and nothing more.

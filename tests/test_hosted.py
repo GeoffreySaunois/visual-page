@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from visualreport.comments import ReportThreads
+from visualreport.comments import AuthorKind, ReportThreads
 from visualreport.hosted.app import create_app
 from visualreport.hosted.comments import CommentAction
 from visualreport.hosted.identity import AccessIdentity
@@ -40,7 +40,24 @@ class MemoryReports:
             return [self.current.model_copy(deep=True)]
         return []
 
-    def mutate(self, document_id, change):
+    def archive(self, path):
+        raise HTTPException(404)
+
+    def gallery(self, email, administrator):
+        return self.visible(email, administrator)
+
+    def history(self, document_id):
+        return [self.read(document_id)]
+
+    def page(self, page_name):
+        if page_name != self.current.page_name:
+            raise HTTPException(404)
+        return self.current.model_copy(deep=True)
+
+    def version(self, document_id, page_name):
+        return self.page(page_name)
+
+    def mutate(self, document_id, change, version):
         self.before_mutation()
         updated = change(self.read(document_id))
         self.current = updated.model_copy(deep=True)
@@ -66,6 +83,10 @@ def environment():
     report = Report(
         document_id="report-demo",
         title="Private title",
+        eyebrow="Test",
+        subtitle="Demo",
+        folder="personal/tooling",
+        date="2026-09-21",
         owner=OWNER,
         grants={ALICE: Role.COMMENTER},
         page_name="report-demo-2026-09-21.html",
@@ -196,7 +217,9 @@ def test_access_is_rechecked_inside_transaction(environment):
     repository.before_mutation = lambda: repository.current.grants.pop(ALICE)
     with pytest.raises(HTTPException) as error:
         service.comment(
-            "report-demo", ALICE, CommentAction("create", None, None, "hello", None)
+            "report-demo",
+            ALICE,
+            CommentAction("create", None, None, "hello", None, AuthorKind.HUMAN),
         )
     assert error.value.status_code == 404
     assert repository.current.threads.threads == []
@@ -247,7 +270,9 @@ def test_publication_is_owner_only_and_republication_preserves_grants_and_discus
 
     _, repository, service, _ = environment
     service.comment(
-        "report-demo", ALICE, CommentAction("create", None, None, "keep me", None)
+        "report-demo",
+        ALICE,
+        CommentAction("create", None, None, "keep me", None, AuthorKind.HUMAN),
     )
     publication = Publication(
         page_name="report-demo-2026-09-22.html",
@@ -273,7 +298,9 @@ def test_anchored_comment_rejected_if_report_changes_before_transaction(environm
     anchor = {"block_index": 1, "quote": "Source body", "prefix": "", "suffix": ""}
     with pytest.raises(HTTPException) as error:
         service.comment(
-            "report-demo", ALICE, CommentAction("create", None, None, "hello", anchor)
+            "report-demo",
+            ALICE,
+            CommentAction("create", None, None, "hello", anchor, AuthorKind.HUMAN),
         )
     assert error.value.status_code == 409
     assert repository.current.threads.threads == []

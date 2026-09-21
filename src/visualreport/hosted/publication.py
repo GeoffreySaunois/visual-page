@@ -16,6 +16,8 @@ from .storage import Objects, Reports
 class Publication(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    # Public API: ordinary publication re-homes comments; refresh explicitly opts out.
+    rehome_comments: bool = True
     page_name: str
     title: str = Field(min_length=1, max_length=200)
     html: str = Field(max_length=8_000_000)
@@ -54,7 +56,9 @@ def publish(
 ) -> Report:
     if email not in owners:
         raise HTTPException(403, "Only configured owners may publish")
-    blocks = split_blocks(parse_source(publication.source)[1])
+    metadata, body = parse_source(publication.source)
+    blocks = split_blocks(body)
+    published_date = archived_page(Path(publication.page_name)).day
     html_key, source_key = objects.upload(
         publication.document_id, publication.html, publication.source
     )
@@ -63,11 +67,17 @@ def publish(
         threads = (
             current.threads if current else ReportThreads.empty(publication.document_id)
         )
-        if current:
+        if current and published_date < current.date:
+            return current
+        if current and publication.rehome_comments:
             rehome_all(threads, blocks)
         return Report(
             document_id=publication.document_id,
             title=publication.title,
+            eyebrow=metadata.eyebrow,
+            subtitle=metadata.subtitle,
+            folder=metadata.folder,
+            date=published_date,
             owner=current.owner if current else email,
             grants=current.grants if current else {},
             page_name=publication.page_name,
@@ -77,4 +87,14 @@ def publish(
             revision=current.revision + 1 if current else 1,
         )
 
-    return reports.mutate(publication.document_id, promote)
+    version = {
+        "page_name": publication.page_name,
+        "title": publication.title,
+        "eyebrow": metadata.eyebrow,
+        "subtitle": metadata.subtitle,
+        "folder": metadata.folder,
+        "date": published_date,
+        "html_key": html_key,
+        "source_key": source_key,
+    }
+    return reports.mutate(publication.document_id, promote, version)
