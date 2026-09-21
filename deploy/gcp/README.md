@@ -127,3 +127,64 @@ Regenerate `requirements.txt` after changing the lock:
 ```sh
 uv export --frozen --no-dev --no-emit-project --format requirements-txt > deploy/gcp/requirements.txt
 ```
+
+## Durable Terraform state and deployment helper
+
+The GCS backend in `state.tf` requires a pre-existing dedicated bucket. It must
+not share the runtime archive bucket: the application identity has no state access.
+Bootstrap with the explicit approved deployment account; do not apply the main
+configuration until its existing local state has been migrated. Set the two
+required tfvars: `terraform_state_bucket_name` and
+`terraform_state_retention_days`. Bucket location uses the selected `gcp_region`.
+
+Before changing the backend, make a durable, private backup outside Git and `/tmp`:
+
+```sh
+install -d -m 700 "$HOME/.local/share/artefacts"
+install -m 600 deploy/gcp/terraform.tfstate \
+  "$HOME/.local/share/artefacts/terraform-before-gcs.tfstate"
+```
+
+Use explicitly selected values for `ACCOUNT`, `PROJECT`, `REGION`, `STATE_BUCKET`,
+`STATE_PREFIX` and `VARS` (the absolute JSON tfvars path). Do not infer the account
+from the active gcloud configuration. The following are operator steps; the helper
+does not silently create buckets, migrate state or start interactive authentication:
+
+```sh
+gcloud storage buckets create "gs://$STATE_BUCKET" \
+  --account="$ACCOUNT" --project="$PROJECT" --location="$REGION" \
+  --uniform-bucket-level-access --public-access-prevention
+gcloud storage buckets update "gs://$STATE_BUCKET" \
+  --account="$ACCOUNT" --versioning
+export GOOGLE_OAUTH_ACCESS_TOKEN="$(gcloud auth print-access-token --account="$ACCOUNT")"
+terraform -chdir=deploy/gcp init -migrate-state \
+  -backend-config="bucket=$STATE_BUCKET" -backend-config="prefix=$STATE_PREFIX"
+terraform -chdir=deploy/gcp import -var-file="$VARS" \
+  google_storage_bucket.terraform_state "$STATE_BUCKET"
+terraform -chdir=deploy/gcp state list
+```
+
+Check that the remote state contains every resource from the local backup before
+removing any local copy. Keep the private backup until a successful remote-state
+plan/apply has completed. Protect the state bucket with narrow IAM; versioning
+allows recovery and the GCS backend supplies locking. Terraform configures its
+noncurrent-version retention on the next reviewed apply. A saved plan can contain
+sensitive values: keep it outside Git, and review it before applying.
+
+After bootstrap/migration, use the helper from the repository root:
+
+```sh
+deploy/gcp/deploy.sh plan \
+  --account "$ACCOUNT" --project "$PROJECT" --vars "$VARS" \
+  --secrets "$HOME/.secrets/cloudflare-artefacts.env" \
+  --state-bucket "$STATE_BUCKET" --state-prefix "$STATE_PREFIX" \
+  --plan "$HOME/.local/share/artefacts/deployment.tfplan"
+```
+
+Review the output, then repeat the exact command with `apply` instead of `plan`.
+Apply executes the selected saved plan and verifies its project/state-bucket
+variables. It never generates a replacement plan. Expired plans must be replanned
+and reviewed. The helper uses `uv sync --frozen`, compares the exported runtime
+requirements to the lock, validates Terraform and reads the Cloudflare token from
+the explicit secret file. Google provider and backend use an ephemeral token for
+`--account`, without changing active accounts or relying on another account's ADC.
