@@ -18,11 +18,15 @@ class Report(BaseModel):
 
     document_id: str
     title: str
+    eyebrow: str
+    subtitle: str
+    folder: str
+    date: str
     owner: str
     grants: dict[str, Role]
     page_name: str
     html_key: str
-    source_key: str
+    source_key: str | None
     threads: ReportThreads
     revision: int = Field(ge=1)
 
@@ -54,3 +58,19 @@ class Report(BaseModel):
             "open": len(self.threads.open_threads),
             "total": len(self.threads.threads),
         }
+
+
+PAGE_FIELDS = (
+    "page_name",
+    "html_key",
+    "source_key",
+    "title",
+    "eyebrow",
+    "subtitle",
+    "folder",
+    "date",
+)
+
+
+def page_fields(report: Report) -> dict:
+    return report.model_dump(mode="json", include=set(PAGE_FIELDS))

@@ -22,6 +22,10 @@ class ReportService:
 
     def comment(self, document_id: str, email: str, action: CommentAction) -> Report:
         report = self.read(document_id, email)
+        if action.anchor is not None and report.source_key is None:
+            raise HTTPException(
+                409, "This archived report has no markdown source for anchoring"
+            )
         source = (
             self.objects.read(report.source_key) if action.anchor is not None else ""
         )
@@ -35,7 +39,7 @@ class ReportService:
             current.revision += 1
             return current
 
-        return self.reports.mutate(document_id, change)
+        return self.reports.mutate(document_id, change, None)
 
     def share(
         self, document_id: str, email: str, recipient: str, role: Role | None
@@ -51,4 +55,4 @@ class ReportService:
             current.revision += 1
             return current
 
-        return self.reports.mutate(document_id, change)
+        return self.reports.mutate(document_id, change, None)

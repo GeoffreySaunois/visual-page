@@ -16,15 +16,22 @@ class CommentAction:
     comment_id: str | None
     body: str | None
     anchor: dict | None
+    actor: comments.AuthorKind
 
     def apply(self, report: Report, email: str, owners: set[str], source: str) -> None:
         report.authorize(email, True, owners)
-        author = comments.Author(kind=comments.AuthorKind.HUMAN, name=email)
+        if self.actor == comments.AuthorKind.AGENT:
+            report.authorize_owner(email, owners)
+        author = (
+            comments.CLAUDE
+            if self.actor == comments.AuthorKind.AGENT
+            else comments.Author(kind=comments.AuthorKind.HUMAN, name=email)
+        )
         if self.kind == "create":
             self.create(report, author, source)
             return
         try:
-            self.update_thread(report, author, owners)
+            self.update_thread(report, author, email, owners)
         except comments.CommentError as error:
             raise HTTPException(404, "Comment or thread not found") from error
 
@@ -42,7 +49,7 @@ class CommentAction:
         report.threads.open_thread(anchor, state, author, self.body, comments.now_utc())
 
     def update_thread(
-        self, report: Report, author: comments.Author, owners: set[str]
+        self, report: Report, author: comments.Author, email: str, owners: set[str]
     ) -> None:
         thread = report.threads.require(self.thread_id)
         now = comments.now_utc()
@@ -50,13 +57,13 @@ class CommentAction:
             thread.add_comment(author, self.body, now)
         elif self.kind in {"edit", "delete_comment"}:
             comment = thread.require_comment(self.comment_id)
-            report.authorize_comment(author.name, comment.author.name, owners)
+            report.authorize_comment(email, comment.author.name, owners)
             if self.kind == "edit":
                 thread.edit_comment(self.comment_id, self.body, now)
             else:
                 report.threads.delete_comment(self.thread_id, self.comment_id, now)
         else:
-            report.authorize_owner(author.name, owners)
+            report.authorize_owner(email, owners)
             if self.kind == "resolve":
                 thread.resolve(author, now)
             elif self.kind == "reopen":

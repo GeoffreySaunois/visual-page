@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from .api import router
+from .history import history_router
 from .identity import AccessIdentity
 from .pages import page_router
 from .service import ReportService
@@ -16,6 +17,7 @@ def create_app(
     app.middleware("http")(response_guard(public_origin))
     app.include_router(router(service, identity))
     app.include_router(page_router(service, identity))
+    app.include_router(history_router(service, identity))
     return app
 
 

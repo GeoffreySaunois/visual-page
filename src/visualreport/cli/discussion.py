@@ -1,8 +1,8 @@
 """The comment commands — the agent's half of the loop.
 
 Reading (`comments`) prints the open threads with the passage each points at.
-Writing goes through the same locked store the server uses, so these work whether
-or not a server is running, and the page picks the change up on its next poll.
+Hosted writes use the authenticated API. --local explicitly selects the local
+archive for a preview or offline work.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import argparse
 from .. import comments
 from ..document import parse_source, split_blocks
 from ..paths import Archive, default_archive
-from . import console
+from . import console, remote, remote_discussion
 
 AUTHORS = {"claude": comments.CLAUDE, "geoffrey": comments.GEOFFREY}
 
@@ -43,7 +43,9 @@ def add_parsers(subparsers: argparse._SubParsersAction) -> None:
     resolving = subparsers.add_parser("resolve", help="résoudre un fil")
     resolving.add_argument("document")
     resolving.add_argument("thread")
-    resolving.add_argument("--body", help="mot de clôture ajouté au fil avant résolution")
+    resolving.add_argument(
+        "--body", help="mot de clôture ajouté au fil avant résolution"
+    )
     add_author(resolving)
     resolving.set_defaults(handler=run_resolve)
 
@@ -63,6 +65,19 @@ def add_parsers(subparsers: argparse._SubParsersAction) -> None:
     deleting.add_argument("target", help="un fil (t3) ou un message (t3.2)")
     deleting.set_defaults(handler=run_delete)
 
+    for command in (
+        listing,
+        opening,
+        replying,
+        resolving,
+        reopening,
+        editing_cmd,
+        deleting,
+    ):
+        command.add_argument(
+            "--local", action="store_true", help="utiliser les commentaires locaux"
+        )
+
 
 def add_author(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
@@ -75,11 +90,18 @@ def add_author(parser: argparse.ArgumentParser) -> None:
 
 
 def run_list(args: argparse.Namespace) -> None:
-    store = comments.store_for(default_archive(), args.document)
-    console.say(comments.digest(store.read(), include_resolved=args.all))
+    threads = (
+        comments.store_for(default_archive(), args.document).read()
+        if args.local
+        else remote.threads(args.document)
+    )
+    console.say(comments.digest(threads, include_resolved=args.all))
 
 
 def run_open(args: argparse.Namespace) -> None:
+    if not args.local:
+        run_remote(args, "open")
+        return
     archive = default_archive()
     store = comments.store_for(archive, args.document)
     anchor, state = resolve_anchor(archive, args.document, args.quote)
@@ -95,6 +117,9 @@ def run_open(args: argparse.Namespace) -> None:
 
 
 def run_reply(args: argparse.Namespace) -> None:
+    if not args.local:
+        run_remote(args, "reply")
+        return
     with editing(args) as threads:
         threads.require(args.thread).add_comment(
             AUTHORS[args.author], args.body, comments.now_utc()
@@ -103,6 +128,9 @@ def run_reply(args: argparse.Namespace) -> None:
 
 
 def run_resolve(args: argparse.Namespace) -> None:
+    if not args.local:
+        run_remote(args, "resolve")
+        return
     author = AUTHORS[args.author]
     with editing(args) as threads:
         thread = threads.require(args.thread)
@@ -113,12 +141,18 @@ def run_resolve(args: argparse.Namespace) -> None:
 
 
 def run_reopen(args: argparse.Namespace) -> None:
+    if not args.local:
+        run_remote(args, "reopen")
+        return
     with editing(args) as threads:
         threads.require(args.thread).reopen(comments.now_utc())
     console.say(f"fil réouvert : {args.thread}")
 
 
 def run_edit(args: argparse.Namespace) -> None:
+    if not args.local:
+        run_remote(args, "edit")
+        return
     with editing(args) as threads:
         threads.require(thread_of(args.comment)).edit_comment(
             args.comment, args.body, comments.now_utc()
@@ -127,6 +161,9 @@ def run_edit(args: argparse.Namespace) -> None:
 
 
 def run_delete(args: argparse.Namespace) -> None:
+    if not args.local:
+        run_remote(args, "delete")
+        return
     """A dot in the target means a message; without one, the whole thread."""
     if "." not in args.target:
         with editing(args) as threads:
@@ -134,8 +171,14 @@ def run_delete(args: argparse.Namespace) -> None:
         console.say(f"fil supprimé : {args.target}")
         return
     with editing(args) as threads:
-        emptied = threads.delete_comment(thread_of(args.target), args.target, comments.now_utc())
-    suffix = f" (dernier message : le fil {thread_of(args.target)} est supprimé)" if emptied else ""
+        emptied = threads.delete_comment(
+            thread_of(args.target), args.target, comments.now_utc()
+        )
+    suffix = (
+        f" (dernier message : le fil {thread_of(args.target)} est supprimé)"
+        if emptied
+        else ""
+    )
     console.say(f"message supprimé : {args.target}{suffix}")
 
 
@@ -154,6 +197,15 @@ def resolve_anchor(
         return None, comments.AnchorState.DOCUMENT
     source = archive.latest_source(document)
     if source is None:
-        console.fail(f"aucune source archivée pour {document} — impossible d'ancrer un passage")
+        console.fail(
+            f"aucune source archivée pour {document} — impossible d'ancrer un passage"
+        )
     blocks = split_blocks(parse_source(source.read_text(encoding="utf-8"))[1])
     return comments.anchor_for_quote(blocks, quote), comments.AnchorState.ANCHORED
+
+
+def run_remote(args: argparse.Namespace, operation: str) -> None:
+    anchor = None
+    if operation == "open":
+        anchor, _ = resolve_anchor(default_archive(), args.document, args.quote)
+    remote_discussion.submit(args, operation, anchor)

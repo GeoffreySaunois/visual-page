@@ -1,21 +1,21 @@
 """Only authorized report objects are exposed; archive directories are private."""
 
-import html
 import json
 import re
-from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ..comments import report_view
-from ..paths import archived_page
+from .gallery import gallery_html
+from .history import archive_response
 from .identity import AccessIdentity
+from .reports import Report
 from .service import ReportService
 
 
-def page_html(service: ReportService, document_id: str, email: str) -> str:
-    report = service.read(document_id, email)
+def report_html(service: ReportService, report: Report) -> str:
     content = service.objects.read(report.html_key)
     seed = json.dumps(report_view(report.threads, report.revision)).replace(
         "<", "\\u003c"
@@ -37,26 +37,29 @@ def page_router(service: ReportService, identity: AccessIdentity) -> APIRouter:
     @routes.get("/", response_class=HTMLResponse)
     def gallery(request: Request):
         user = email(request)
-        reports = service.reports.visible(user, user in service.owners)
-        links = "".join(
-            f'<li><a href="/reports/{html.escape(r.document_id, quote=True)}">{html.escape(r.title)}</a></li>'
-            for r in reports
-        )
-        return f'<!doctype html><html lang="fr"><meta charset="utf-8"><title>Artefacts</title><h1>Artefacts</h1><ul>{links}</ul></html>'
+        return gallery_html(service, user)
+
+    @routes.get("/index.html", response_class=HTMLResponse)
+    def gallery_index(request: Request):
+        return gallery_html(service, email(request))
 
     @routes.get("/reports/{document_id}", response_class=HTMLResponse)
     def report(document_id: str, request: Request):
-        return page_html(service, document_id, email(request))
+        current = service.read(document_id, email(request))
+        return RedirectResponse(
+            "/" + quote(current.page_name, safe=""), status_code=307
+        )
 
     @routes.get("/{page_name}", response_class=HTMLResponse)
     def legacy_page(page_name: str, request: Request):
-        page = archived_page(Path(page_name))
-        if page is None:
-            raise HTTPException(404, "Page not found")
         user = email(request)
-        report = service.read(page.document_id, user)
-        if report.page_name != page_name:
-            raise HTTPException(404, "Only the published report version is available")
-        return page_html(service, page.document_id, user)
+        try:
+            report = service.reports.page(page_name)
+        except HTTPException as error:
+            if error.status_code != 404:
+                raise
+            return archive_response(request, page_name, service, identity)
+        report.authorize(user, False, service.owners)
+        return report_html(service, report)
 
     return routes

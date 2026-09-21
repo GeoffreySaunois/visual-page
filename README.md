@@ -13,18 +13,19 @@ The package and the CLI keep the name `visualreport` / `visual-report` while the
 skill is `visual-page`: the archive at `~/.claude/html-reports/`, the comment stores
 and the running server's state are all keyed on it, so renaming buys nothing.
 
-`docs/remote-access.md` is the operational side: how the archive reaches a phone —
-Cloudflare tunnel, Access, and the launchd agent that keeps the pair up — and how to
-set that up from scratch. `deploy/` carries the service definition itself.
+The hosted archive at https://artefacts.saunois.xyz uses Cloudflare Access for
+identity, Cloud Run for the API, Firestore for discussions and GCS for publications.
+The CLI publishes and discusses through the same authenticated API as the browser.
+`docs/remote-access.md` describes authoring and optional local previews.
 
 ## Run it
 
 ```bash
-bin/visual-report render SOURCE.md --serve      # compile, serve, open commentable
+bin/visual-report render SOURCE.md --serve      # compile and publish commentable
 bin/visual-report pdf report-<slug>             # the published page, on paper
 bin/visual-report comments report-<slug>        # what is pending, as markdown
 bin/visual-report refresh --dry-run             # what a rebuild of the archive would touch
-uv run pytest                                   # the suite
+uv run --frozen pytest                                   # the suite
 ```
 
 **A page keeps the templates it was built with.** Styles and scripts are inlined at
@@ -32,7 +33,7 @@ render time, so a fix to the comment panel or to the charte reaches the pages
 rendered afterwards and no others. `refresh` closes that gap: it replays every
 archived source through the current templates and rewrites each page in place,
 under its own name and its own date — `refresh <kind>-<slug>` for one document,
-`--dry-run` to see the list first. It is the gesture that follows a change under
+`--dry-run` to see the list first and `--serve` to republish refreshed pages. It is the gesture that follows a change under
 `templates/`.
 
 What it cannot promise is that an old page comes back *the same*: it is rebuilt by
@@ -42,23 +43,14 @@ fix, a surprise otherwise. **Take a copy of the archive before a wide pass** (it
 outside any repo and there is no undo), and diff the visible text of the pages that
 changed.
 
-`bin/visual-report` is a wrapper over `uv run --project <here> visual-report`, so
+`bin/visual-report` is a wrapper over `uv run --frozen --project <here> visual-report`, so
 it works from any directory and syncs the environment on the way in.
 
-**A running server holds the old code.** After touching anything under
-`src/visualreport/`, `visual-report stop && visual-report serve` — otherwise the
-served API is the one loaded at start-up, and a new endpoint answers 404 while the
-page silently falls back to "write failed". Re-rendering a page is enough for a
-template or script change only when the server is not the thing that changed.
-The same `stop && serve` cycles the tunnel: `stop` kills both processes and `serve`
-starts both, so a change to `server/tunnel.py` needs no other gesture. A
-`cloudflared` started by hand outside the engine is invisible to `status` and holds
-the metrics port (`127.0.0.1:8788`, where readiness is read): the engine then refuses
-to launch a second one, warns, and serves locally. `pkill -f "cloudflared tunnel run"`,
-then `stop && serve`. What the tunnel itself says is in `logs/tunnel.log`.
-`VISUAL_REPORT_ARCHIVE` moves the archive elsewhere — the tests use it, and it is
-the way to try things without touching `~/.claude/html-reports`.
-`VISUAL_REPORT_CLOUDFLARED_CONFIG` moves the cloudflared config the tunnel reads.
+**Hosted code runs in the deployed Cloud Run image.** A backend change requires a
+new deployment. A template change requires republishing its affected reports.
+`visual-report serve` is an explicit loopback preview; restart that preview after
+changing its Python code. It starts no tunnel or background login service.
+`VISUAL_REPORT_ARCHIVE` selects a different local authoring archive for tests.
 
 ## The tree
 
@@ -143,9 +135,9 @@ decorator, not rewriting the body again.
   needs the server.
 - **A comment is never dropped.** If the quoted words were rewritten it *drifts*;
   if the block disappeared it is *orphaned*. Both stay visible and say so.
-- **Two writers, one store.** The server and the CLI both go through
-  `comments/store.py`, which locks and replaces atomically — the agent can comment
-  while nobody is serving, and the page catches up on its next poll.
+- **Two writers, one hosted store.** Browser and CLI mutations use authenticated
+  API transactions. Local preview comments use `comments/store.py` with atomic
+  replacements; those files are not the authoritative hosted discussion.
 - **The iteration reference is one step.** `src/.last-rendered/<document>.md` holds
   the version last rendered; a diff compares against it and never builds a history.
 - **A refresh advances nothing.** Rebuilding a published page replays the source
@@ -154,16 +146,10 @@ decorator, not rewriting the body again.
   them on an old version would drag the anchors backwards. The rebuilt page is
   promoted only once it is whole, and an image whose file left the disk is carried
   over from the page being replaced, so a refresh never costs a screenshot.
-- **The remote is opt-in by the presence of the cloudflared config.** No
-  `~/.cloudflared/config.yml`, no ingress rule naming a hostname, or no
-  `cloudflared` on the PATH ⇒ no tunnel, no error, no line in the output — the
-  engine is whole for someone who never heard of Cloudflare. The hostname and the
-  tunnel name are read from that file and appear nowhere in the code, so the two
-  cannot drift.
-- **The tunnel never costs the local server.** A tunnel that fails to come up is a
-  warning; `serve` still serves, and `render --serve` still hands over the loopback
-  URL. Losing the ability to serve locally because an edge is down would be the
-  worse of the two failures.
+- **Publication is explicit.** `render --serve` writes to the hosted service and
+  returns its HTTPS URL. A failed or expired login fails publication clearly;
+  there is no silent fallback to a private loopback URL.
+- **Local preview is explicit.** `--local` and `serve` never open a public tunnel.
 
 ## Testing
 

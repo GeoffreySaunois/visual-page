@@ -5,8 +5,8 @@ groups pages by it. The list is closed on purpose — an author picks the folder
 that fits, never invents one, so the gallery keeps a stable shape across
 hundreds of pages. Adding a folder is one entry below.
 
-Two levels only: a *section* (`swaap`, `personal`) that can hold pages directly,
-and its *folders* (`swaap/gym`) for the themes dense enough to deserve one.
+Sections and nested folders can hold pages directly. Each folder names its
+parent through its path, so a theme can grow its own subfolders.
 """
 
 from __future__ import annotations
@@ -43,6 +43,11 @@ TAXONOMY: tuple[Folder, ...] = (
         "la plateforme gym : projets, runs, thinker, reviewer, dashboard, coûts LLM des runs",
     ),
     Folder(
+        "swaap/gym/lab",
+        "Gym Lab",
+        "vision, architecture, livraison et développement de Gym Lab",
+    ),
+    Folder(
         "swaap/trading",
         "Trading & prod",
         "searcher, strats HL, arb, rfq, backtester, incidents et digests de prod",
@@ -69,7 +74,9 @@ TAXONOMY: tuple[Folder, ...] = (
     ),
     Folder("personal/travel", "Voyages", "roadbooks, logements, activités"),
     Folder("personal/admin", "Organisation", "mails, rappels, démarches"),
-    Folder("personal/markets", "Marchés & paris", "Polymarket, analyses quant hors Swaap"),
+    Folder(
+        "personal/markets", "Marchés & paris", "Polymarket, analyses quant hors Swaap"
+    ),
     Folder(
         "personal/tooling",
         "Outillage",
@@ -79,7 +86,9 @@ TAXONOMY: tuple[Folder, ...] = (
 
 # Not a taxonomy entry: nothing can be filed there on purpose, it is only where
 # the gallery shelves a page whose folder tag is missing or unknown.
-UNFILED = Folder("a-classer", "À classer", "pages rendues avant que la galerie ait des dossiers")
+UNFILED = Folder(
+    "a-classer", "À classer", "pages rendues avant que la galerie ait des dossiers"
+)
 
 BY_PATH: dict[str, Folder] = {folder.path: folder for folder in TAXONOMY}
 
@@ -94,8 +103,10 @@ def sections() -> list[Folder]:
 
 
 def folders_of(section: Folder) -> list[Folder]:
-    """The folders nested under a section, in taxonomy order."""
-    return [entry for entry in TAXONOMY if not entry.is_section and entry.section == section.path]
+    """The immediate child folders, in taxonomy order."""
+    return [
+        entry for entry in TAXONOMY if entry.path.rpartition("/")[0] == section.path
+    ]
 
 
 def describe() -> str:

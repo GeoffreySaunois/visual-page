@@ -72,27 +72,31 @@ def under(node: folders.Folder, entries: list[Entry]) -> list[Entry]:
         return entries
     if node is folders.UNFILED:
         return [entry for entry in entries if entry.folder == folders.UNFILED]
-    if node.is_section:
-        return [entry for entry in entries if entry.folder.section == node.path]
-    return [entry for entry in entries if entry.folder == node]
+    return [
+        entry
+        for entry in entries
+        if entry.folder == node or entry.folder.path.startswith(node.path + "/")
+    ]
 
 
 def children(node: folders.Folder, entries: list[Entry]) -> list[folders.Folder]:
     """The tiles a directory shows: the sections at the root (plus the unfiled
-    shelf when it exists), a section's folders, nothing inside a folder."""
+    shelf when it exists), then only the immediate children of each folder."""
     if node is ROOT:
         shelves = folders.sections()
         if any(entry.folder == folders.UNFILED for entry in entries):
             shelves = shelves + [folders.UNFILED]
         return [shelf for shelf in shelves if under(shelf, entries)]
-    if node.is_section and node is not folders.UNFILED:
+    if node is not folders.UNFILED:
         return [child for child in folders.folders_of(node) if under(child, entries)]
     return []
 
 
 def directory(node: folders.Folder, entries: list[Entry]) -> str:
     """One directory: its breadcrumb, its folder tiles, then its own pages."""
-    own = [entry for entry in entries if entry.folder == node] if node is not ROOT else []
+    own = (
+        [entry for entry in entries if entry.folder == node] if node is not ROOT else []
+    )
     tiles = "\n".join(tile(child, entries) for child in children(node, entries))
     path = html.escape(node.path)
     return "\n".join(
@@ -111,11 +115,12 @@ def breadcrumb(node: folders.Folder) -> str:
     """`Archive › Swaap › Gym`, every ancestor a link to its own directory."""
     trail = ['<a href="#/">Archive</a>']
     if node is not ROOT:
-        if not node.is_section:
-            section = folders.folder(node.section)
-            assert section is not None
+        parts = node.path.split("/")
+        for depth in range(1, len(parts)):
+            ancestor = folders.folder("/".join(parts[:depth]))
+            assert ancestor is not None
             trail.append(
-                f'<a href="#/{html.escape(section.path)}">{html.escape(section.label)}</a>'
+                f'<a href="#/{html.escape(ancestor.path)}">{html.escape(ancestor.label)}</a>'
             )
         trail.append(f"<span>{html.escape(node.label)}</span>")
     return '<nav class="crumbs">' + " <i>›</i> ".join(trail) + "</nav>"
@@ -125,16 +130,22 @@ def location(node: folders.Folder) -> str:
     """Where a directory's own pages sit, as the search results label them."""
     if node is ROOT:
         return ""
-    if node.is_section:
-        return node.label
-    section = folders.folder(node.section)
-    return f"{section.label if section else node.section} › {node.label}"
+    parts = node.path.split("/")
+    lineage = [
+        folders.folder("/".join(parts[:depth])) for depth in range(1, len(parts) + 1)
+    ]
+    return (
+        " › ".join(ancestor.label for ancestor in lineage if ancestor is not None)
+        or node.label
+    )
 
 
 def tile(child: folders.Folder, entries: list[Entry]) -> str:
     filed = under(child, entries)
     pending = sum(entry.awaiting_agent for entry in filed)
-    badge = f'<span class="badge waiting">{pending} pour Claude</span>' if pending else ""
+    badge = (
+        f'<span class="badge waiting">{pending} pour Claude</span>' if pending else ""
+    )
     plural = "s" if len(filed) != 1 else ""
     return "\n".join(
         [
@@ -176,5 +187,7 @@ def comment_badge(entry: Entry) -> str:
         return ""
     label = f"{entry.open_comments} ouvert{'s' if entry.open_comments > 1 else ''}"
     if entry.awaiting_agent:
-        return f'<p class="badge waiting">{label} · {entry.awaiting_agent} pour Claude</p>'
+        return (
+            f'<p class="badge waiting">{label} · {entry.awaiting_agent} pour Claude</p>'
+        )
     return f'<p class="badge">{label}</p>'
