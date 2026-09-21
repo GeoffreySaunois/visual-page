@@ -1,99 +1,128 @@
-# Artefacts hosting foundations
+# Artefacts hosted reports
 
-This directory prepares `artefacts.saunois.xyz`. It is **not a deployable public
-replacement for the local report server yet**. No resources have been created.
-The GCP account, project, billing account and locations must be approved by Geoffrey
-before planning against an account or applying anything.
+`visualreport.hosted` serves selected reports from a private GCS bucket with
+transactional metadata, permissions and comments in Firestore. It is separate from
+the local archive server. No existing archive is automatically copied to GCP.
 
-## Infrastructure
+Cloudflare Access identifies users through email OTP. Anyone can authenticate, but
+the application grants no report access until its owner shares that report. The
+application validates the Access JWT signature, fixed issuer, audience and expiry
+on requests arriving through Cloudflare and directly at the Cloud Run URL.
+No SMTP or Resend is required. Terraform owns authentication infrastructure;
+Firestore holds report permissions, so invitations do not require an apply.
 
-- Cloud Run uses request-based CPU billing, minimum zero instances and an explicitly
-  supplied maximum. Its image must be pinned by digest. There is no public invoker
-  IAM binding: the service requires Google authentication even with public ingress.
-- GCS stores published HTML, markdown sources and attachments privately. Versioning,
-  public-access prevention and deletion protection protect the archive. Noncurrent
-  versions expire after the explicitly supplied retention period.
-- An explicitly selected Firestore database holds metadata, grants and comment
-  transactions. Its runtime IAM binding is limited to this database. The database
-  has deletion protection; point-in-time recovery is an explicit paid option.
-- Cloudflare Access supplies email OTP and initially allows only explicit owners.
-  Email delivery is Cloudflare's responsibility; no SMTP or Resend is required.
-- No DNS record, origin routing, tunnel, load balancer, image repository or public
-  service binding is provisioned by these foundations. The existing local server
-  and its Cloudflare tunnel remain untouched.
+## Runtime
 
-Scale-to-zero covers compute, not storage. For a new dedicated personal project,
-recommend `firestore_database_name = "(default)"` and
-`firestore_pitr_enabled = false` at bootstrap, pending owner approval. A named
-Firestore database is not entitled to the default database's free quota. GCS
-versions consume storage until their explicit noncurrent retention expires;
-Cloud Storage soft-delete retention can retain deleted versions longer. Confirm
-these choices when selecting the project and retention policy.
-The maximum instance count is a scaling setting, not a monetary spending cap.
+Cloud Run minimum is zero; maximum is an explicit input. Request-based CPU billing
+permits scale-to-zero. `public_invocation_enabled` explicitly controls whether
+Cloud Run accepts unauthenticated invocations at its IAM layer; the hosted
+application still requires a valid Access identity. A page kept open polls its
+comments every four seconds and therefore counts as traffic.
 
-## Required inputs and credentials
+GCS stores immutable HTML/source publications. Firestore transactions update each
+report's grants and comment state. Authorization is rechecked in the transaction,
+including author ownership for editing/deleting comments. Re-publication preserves
+current comments/grants and re-homes anchors against the new source. HTML responses
+replace the embedded comment snapshot with current comments and prohibit caching.
+The gallery is filtered by permissions, and archive directories, raw sources,
+logs and filesystem paths have no public routes.
 
-Every input in `variables.tf` is explicit. Supply a private, gitignored `.tfvars`
-file after the account choice. Do not copy a work GCP project into this config.
-Authenticate Google using ADC or workload identity; do not create a service-account
-JSON key. Supply Cloudflare's scoped token through `CLOUDFLARE_API_TOKEN`.
+Environment variables are all required:
 
-Cloudflare bootstrap requires an existing Zero Trust organization and an active
-Cloudflare zone for `saunois.xyz`. This stage needs Access application/policy and
-identity-provider edit permissions. DNS permissions become necessary when adding
-origin routing. Import existing matching Access/OTP resources if the account
-already has them; do not create conflicting resources blindly.
+| Name | Value |
+|---|---|
+| `GCP_PROJECT_ID` | approved project ID |
+| `ARTEFACTS_BUCKET` | private GCS bucket |
+| `ARTEFACTS_DATABASE` | explicit Firestore database name |
+| `CLOUDFLARE_ACCESS_ISSUER` | `https://<team>.cloudflareaccess.com` |
+| `CLOUDFLARE_ACCESS_AUDIENCE` | Access application audience |
+| `ARTEFACTS_OWNER_EMAILS` | JSON array of administrator emails |
+| `ARTEFACTS_PUBLIC_ORIGIN` | `https://artefacts.saunois.xyz` |
+| `PORT` | supplied by Cloud Run |
 
-The hosted backend image is an explicit prerequisite. The local entry point binds
-loopback, serves the entire archive, attributes all browser comments to Geoffrey,
-and uses POSIX file locks. It must not be passed as the hosted image.
+The runtime uses GCP workload identity. Do not create service-account JSON keys.
+Cloudflare's Terraform credential comes from `CLOUDFLARE_API_TOKEN`; the app needs
+no Cloudflare administration token. Existing Access resources must be imported
+before applying a matching configuration.
 
-## Backend integration before public traffic
+## Build and publication
 
-1. Validate Cloudflare JWT signatures using the organization's JWKS; require the
-   configured issuer, application audience, expiry, and verified email. A raw
-   identity header is never proof of identity. Protect direct Cloud Run requests
-   identically. Require the issuer/team domain explicitly in hosted configuration.
-2. Implement a deny-by-default report grant model: owner, reader, commenter.
-   Enforce it for the gallery, each HTML/source/file response and every comment
-   operation. Store the authenticated author on comments; enforce edit/delete
-   ownership. Unshared reports must not appear in catalog results.
-3. Store pages and sources using the GCS API, and comments/grants in Firestore
-   transactions. Do not mount the bucket over the POSIX store: its locking and
-   atomic replacement semantics are not a distributed transaction protocol.
-4. Provide authenticated publication and comment APIs for the local CLI. Migrate
-   only selected reports with an explicit owner; review embedded comment snapshots
-   in HTML because those snapshots are visible to every reader of that report.
-5. Provide a sharing endpoint and UI. A future application-owned Cloudflare access
-   group can contain the union of owners and active invitees. Terraform owns the
-   application/policy and references the group; the application owns membership.
-   Do not manage the same membership in Terraform and the API. Removing a report
-   grant takes effect in the backend immediately, irrespective of Access sessions.
-6. Choose and validate custom-domain routing/TLS. A Cloudflare DNS CNAME alone is
-   not enough to configure the Cloud Run origin hostname and certificate. Compare
-   a compatible domain mapping with a Cloudflare Worker proxy; avoid silently adding
-   an always-on paid GCP load balancer. Disable caching of private report responses.
-7. Only after auth and ACL tests pass, introduce public invocation plus the selected
-   routing. Test OTP, direct-origin bypass, cross-report access, reader writes,
-   revocation, concurrent comments, and persistence through scale-to-zero/restarts.
-
-## Local validation
+From the repository root, build with an approved Python 3.14 Linux base image pinned
+by digest, then pass the resulting image digest to Terraform:
 
 ```sh
+docker build --platform linux/amd64 -f deploy/gcp/Dockerfile \
+  --build-arg PYTHON_IMAGE="$REVIEWED_PYTHON_IMAGE" -t "$IMAGE_TAG" .
+```
+
+The Dockerfile installs only the hash-pinned runtime requirements. The service runs
+as an unprivileged user on `0.0.0.0:$PORT`. The image contains code only, no archive
+or credentials. It uses Cloud Run's TCP startup probe; `/api/health` is authenticated.
+
+Publish only a specifically approved report, with its matching markdown source.
+Set `ARTEFACTS_ACCESS_JWT` to an existing owner Access session token without putting
+it into source control or command-line arguments. For example, after an interactive
+Cloudflare login: `export ARTEFACTS_ACCESS_JWT="$(cloudflared access token --app=https://artefacts.saunois.xyz)"`.
+CLI requests refuse redirects to prevent credential forwarding.
+
+```sh
+uv run python -m visualreport.hosted.publish \
+  --origin https://artefacts.saunois.xyz \
+  --page /absolute/path/report-demo-2026-09-21.html \
+  --source /absolute/path/report-demo-2026-09-21.md --title 'Demo'
+
+uv run python -m visualreport.hosted.share \
+  --origin https://artefacts.saunois.xyz \
+  --document report-demo --email alice@acme.fr --role commenter
+```
+
+Use `reader` for read-only access and `revoke` to remove a grant. Readers can see
+all comments in that report; commenters can write and change their own comments.
+Owners can manage grants and moderate/resolve/delete threads. Existing Access
+sessions do not retain revoked report grants: each read checks Firestore again.
+The commands print URLs/status, never tokens. No invitation email is sent; share
+the report URL separately. A sharing button is not implemented yet. The existing
+comment panel shows some actions that the backend will refuse for readers or
+non-owning commenters; role-aware UI is a remaining usability improvement.
+
+## Storage and cost
+
+Select the project and billing account explicitly. For a fresh personal project,
+`firestore_database_name = "(default)"` preserves eligibility for the free quota;
+`firestore_pitr_enabled = false` avoids paid PITR at bootstrap. A named database
+does not get the default database's free quota. GCS versions expire according to
+`archive_noncurrent_retention_days`; default GCS soft-delete retention can retain
+them longer. Published immutable objects are not automatically garbage-collected:
+old publications remain current GCS objects until an explicit cleanup is implemented.
+Review retention and costs before large migrations.
+
+Report metadata and comments share a transactional Firestore document, limited by
+the application to 700 KB; larger conversations return 413 rather than silently
+losing data. HTML is limited to 8 million characters and markdown to 1 million.
+Only the latest published version is exposed. Pages remain self-contained; external
+attachments need a future owner-controlled publication route with report ACLs.
+
+## Validation
+
+```sh
+uv run pytest -q
+uv run ruff check src/visualreport/hosted tests/test_hosted.py
 terraform -chdir=deploy/gcp init -backend=false -input=false
 terraform -chdir=deploy/gcp fmt -check
 terraform -chdir=deploy/gcp validate
 ```
 
-These commands need no account credentials and create no cloud resources. Provider
-versions are exact and `.terraform.lock.hcl` records their checksums. Google 7.26.0
-was released March 31, 2026; Cloudflare 5.19.0 April 24, 2026. Both exceed the
-30-day soak at preparation on September 21, 2026. This directory introduces no
-Python dependencies. Account-specific planning and integration tests are pending.
-A secured remote Terraform state backend must be selected before actual deployment.
+JWT tests use real RSA signatures. Authorization tests cover unshared reports,
+read-only users, author ownership, revocation including concurrent mutation,
+publication ownership and cross-origin mutation refusal. The unit suite does not
+replace a GCP smoke check for workload identity, transaction retries, bucket access,
+OTP login, proxy/TLS, and persistence across restarts. Use a new non-confidential
+smoke report before sharing real reports.
 
-References:
-- https://github.com/hashicorp/terraform-provider-google/releases/tag/v7.26.0
-- https://github.com/cloudflare/terraform-provider-cloudflare/releases/tag/v5.19.0
-- https://docs.cloud.google.com/firestore/native/docs/manage-databases
-- https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/
+Provider versions and checksums are pinned. Runtime dependencies were resolved
+with an August 20, 2026 release cutoff (>30 days before preparation) and audited.
+Regenerate `requirements.txt` after changing the lock:
+
+```sh
+uv export --frozen --no-dev --no-emit-project --format requirements-txt > deploy/gcp/requirements.txt
+```

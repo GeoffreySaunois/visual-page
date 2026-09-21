@@ -14,9 +14,10 @@ resource "cloudflare_zero_trust_access_application" "reports" {
   allowed_idps              = [cloudflare_zero_trust_access_identity_provider.email.id]
   auto_redirect_to_identity = true
   policies = [{
-    name       = "Owners during bootstrap"
+    name       = "Authenticated email identities"
     decision   = "allow"
     precedence = 1
-    include    = [for email in sort(tolist(var.owner_emails)) : { email = { email = email } }]
+    include    = [{ everyone = {} }]
+    require    = [{ login_method = { id = cloudflare_zero_trust_access_identity_provider.email.id } }]
   }]
 }

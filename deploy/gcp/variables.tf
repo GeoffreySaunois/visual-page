@@ -35,7 +35,7 @@ variable "cloudflare_account_id" {
   type        = string
 }
 variable "owner_emails" {
-  description = "Owners allowed through Access during bootstrap; do not broaden until backend report ACLs are enforced."
+  description = "Administrators allowed to publish and manage all report grants in the hosted backend."
   type        = set(string)
   validation {
     condition     = length(var.owner_emails) > 0 && alltrue([for email in var.owner_emails : can(regex("^[^@ ]+@[^@ ]+\\.[^@ ]+$", email))])
@@ -58,4 +58,12 @@ variable "archive_noncurrent_retention_days" {
     condition     = var.archive_noncurrent_retention_days >= 1 && floor(var.archive_noncurrent_retention_days) == var.archive_noncurrent_retention_days
     error_message = "archive_noncurrent_retention_days must be a positive integer."
   }
+}
+variable "cloudflare_access_issuer" {
+  description = "HTTPS origin of the Cloudflare Zero Trust organization."
+  type        = string
+}
+variable "public_invocation_enabled" {
+  description = "Explicitly enable public invocation only after hosted JWT and report authorization validation."
+  type        = bool
 }
