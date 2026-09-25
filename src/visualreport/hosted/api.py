@@ -57,12 +57,7 @@ def router(service: ReportService, identity: AccessIdentity) -> APIRouter:
 
     @routes.get("/documents")
     def documents(email: User):
-        return {
-            "documents": [
-                r.summary()
-                for r in service.reports.visible(email, email in service.owners)
-            ]
-        }
+        return {"documents": [r.summary() for r in service.visible(email)]}
 
     @routes.post("/publish")
     def publication(body: Publication, email: User):
@@ -78,8 +73,17 @@ def router(service: ReportService, identity: AccessIdentity) -> APIRouter:
     @routes.get("/documents/{document_id}/shares")
     def shares(document_id: str, email: User):
         report = service.read(document_id, email)
-        report.authorize_owner(email, service.owners)
+        report.authorize_owner(email, service.access())
         return {"owner": report.owner, "grants": report.grants}
+
+    @routes.put("/folders/{folder:path}/shares")
+    def share_folder(folder: str, body: Share, email: User):
+        return {"grants": service.share_folder(email, folder, body.email, body.role)}
+
+    @routes.get("/shares")
+    def all_shares(email: User):
+        by_folder, by_document = service.shares(email)
+        return {"folders": by_folder, "documents": by_document}
 
     @routes.get("/documents/{document_id}/threads")
     def threads(document_id: str, email: User):

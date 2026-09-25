@@ -29,9 +29,22 @@ are authoritative; replies, edits and lifecycle commands use the authenticated A
 Agent comments retain their agent attribution. Never resolve a thread without the
 user explicitly requesting it.
 
-Sharing is per report through `visualreport.hosted.share`, using an existing Access
-session. Readers can view; commenters can also discuss. A verified email without a
-grant cannot read the report. Publishing and sharing require owner access.
+## Sharing
+
+A verified email without a grant sees nothing: no gallery card, a 404 on every
+report. The archive owner grants access per document or per folder:
+
+```sh
+visual-report share alice@example.com --document report-my-topic --role reader
+visual-report share alice@example.com --folder personal/medical-copilot --role commenter
+visual-report share alice@example.com --folder personal/medical-copilot --role revoke
+visual-report shares    # every grant, by folder then by document
+```
+
+Readers can view; commenters can also discuss. A folder grant covers the folder,
+every folder nested under it and the reports published there later. A reader's
+role on a report is the strongest of its document grant and its folder grants, so
+revoking a folder leaves any document grant in place.
 
 ## Optional local preview
 

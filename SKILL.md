@@ -274,6 +274,9 @@ not archived gets the meta tag written straight into its HTML.
 
 **Reaching it.** The gallery is **https://artefacts.saunois.xyz**. Cloudflare Access
 verifies email ownership; the hosted backend enforces permissions per report.
+To let someone else in, `visual-report share <email> --document <id> | --folder <path>
+--role reader|commenter|revoke` (a folder covers its subfolders and future pages);
+`visual-report shares` lists every grant. See `docs/remote-access.md`.
 `render --serve` publishes remotely, and comment CLI commands read/write the hosted
 store by default. No local daemon, login agent or reverse tunnel is required.
 `visual-report serve` is an explicit local preview only. See `docs/remote-access.md`.
@@ -476,10 +479,6 @@ comment stores and the running server's state for a cosmetic gain.
 
 ## Possible evolutions
 
-- **Sharing a page with someone else.** The public URL is the Mac's own archive
-  behind Cloudflare Access, so it opens for Geoffrey and for nobody else. Handing a
-  page to a third party would need a publish step (a static copy pushed somewhere,
-  or an Access policy per page); neither is built.
 - **Comment mentions of a chart or a table cell** — anchoring is block-level plus a
   text quote today, so a figure can only be commented as a whole.
 

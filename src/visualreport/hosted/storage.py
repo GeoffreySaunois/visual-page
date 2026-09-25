@@ -9,13 +9,17 @@ from fastapi import HTTPException
 from google.cloud import firestore, storage
 from google.cloud.firestore_v1.base_query import FieldFilter
 
-from .reports import Report, page_fields
+from .reports import Report, Role, page_fields
 
 
 class Reports(Protocol):
     def read(self, document_id: str) -> Report: ...
-    def visible(self, email: str, administrator: bool) -> list[Report]: ...
-    def gallery(self, email: str, administrator: bool) -> list[Report]: ...
+    def visible(
+        self, email: str, administrator: bool, folders: list[str]
+    ) -> list[Report]: ...
+    def gallery(
+        self, email: str, administrator: bool, folders: list[str]
+    ) -> list[Report]: ...
     def history(self, document_id: str) -> list[Report]: ...
     def page(self, page_name: str) -> Report: ...
     def archive(self, path: str) -> dict: ...
@@ -26,6 +30,13 @@ class Reports(Protocol):
         change: Callable[[Report | None], Report],
         version: dict | None,
     ) -> Report: ...
+
+
+class FolderShares(Protocol):
+    def all(self) -> dict[str, dict[str, Role]]: ...
+    def share(
+        self, folder: str, recipient: str, role: Role | None
+    ) -> dict[str, Role]: ...
 
 
 class Objects(Protocol):
@@ -46,17 +57,24 @@ class FirestoreReports:
             raise HTTPException(404, "Report not found")
         return Report.model_validate(snapshot.to_dict()["report"])
 
-    def visible(self, email: str, administrator: bool) -> list[Report]:
-        query = (
-            self.collection
-            if administrator
-            else self.collection.where(
-                filter=FieldFilter("members", "array_contains", email)
-            )
-        )
-        return [
-            Report.model_validate(row.to_dict()["report"]) for row in query.stream()
-        ]
+    def visible(
+        self, email: str, administrator: bool, folders: list[str]
+    ) -> list[Report]:
+        """Reports `email` may read: all for an administrator, otherwise those
+        naming it as a member plus those filed in a folder shared with it."""
+        if administrator:
+            rows = list(self.collection.stream())
+        else:
+            members = FieldFilter("members", "array_contains", email)
+            rows = list(self.collection.where(filter=members).stream()) + [
+                row
+                for chunk in chunks(folders)
+                for row in self.collection.where(
+                    filter=FieldFilter("report.folder", "in", chunk)
+                ).stream()
+            ]
+        reports = [Report.model_validate(row.to_dict()["report"]) for row in rows]
+        return list({report.document_id: report for report in reports}.values())
 
     def mutate(
         self,
@@ -104,19 +122,22 @@ class FirestoreReports:
             raise HTTPException(404, "Archive file not found")
         return snapshot.to_dict()
 
-    def gallery(self, email: str, administrator: bool) -> list[Report]:
-        visible = {r.document_id: r for r in self.visible(email, administrator)}
+    def gallery(
+        self, email: str, administrator: bool, folders: list[str]
+    ) -> list[Report]:
+        visible = {
+            r.document_id: r for r in self.visible(email, administrator, folders)
+        }
         if not visible:
             return []
         if administrator:
             rows = list(self.pages.stream())
         else:
-            ids = list(visible)
             rows = [
                 row
-                for offset in range(0, len(ids), 30)
+                for chunk in chunks(list(visible))
                 for row in self.pages.where(
-                    filter=FieldFilter("document_id", "in", ids[offset : offset + 30])
+                    filter=FieldFilter("document_id", "in", chunk)
                 ).stream()
             ]
         versions = [
@@ -153,6 +174,43 @@ class FirestoreReports:
         if report.document_id != document_id:
             raise HTTPException(404, "Report version not found")
         return report
+
+
+class FirestoreFolderShares:
+    """One document per shared folder: `{folder, grants}`."""
+
+    def __init__(self, client: firestore.Client):
+        self.client = client
+        self.collection = client.collection("folder_shares")
+
+    def all(self) -> dict[str, dict[str, Role]]:
+        return {
+            (data := row.to_dict())["folder"]: {
+                email: Role(role) for email, role in data["grants"].items()
+            }
+            for row in self.collection.stream()
+        }
+
+    def share(self, folder: str, recipient: str, role: Role | None) -> dict[str, Role]:
+        reference = self.collection.document(page_id(folder))
+
+        @firestore.transactional
+        def commit(transaction):
+            snapshot = reference.get(transaction=transaction)
+            grants = snapshot.to_dict()["grants"] if snapshot.exists else {}
+            if role is None:
+                grants.pop(recipient, None)
+            else:
+                grants[recipient] = role.value
+            transaction.set(reference, {"folder": folder, "grants": grants})
+            return {email: Role(value) for email, value in grants.items()}
+
+        return commit(self.client.transaction())
+
+
+def chunks(values: list[str]) -> list[list[str]]:
+    """Firestore caps an `in` filter at 30 values."""
+    return [values[offset : offset + 30] for offset in range(0, len(values), 30)]
 
 
 def page_id(page_name: str) -> str:

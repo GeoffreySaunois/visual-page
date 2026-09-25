@@ -7,16 +7,16 @@ from .app import create_app
 from .config import from_environment
 from .identity import access_identity
 from .service import ReportService
-from .storage import BucketObjects, FirestoreReports
+from .storage import BucketObjects, FirestoreFolderShares, FirestoreReports
 
 
 def main() -> None:
     config = from_environment()
+    database = firestore.Client(project=config.project_id, database=config.database)
     service = ReportService(
-        FirestoreReports(
-            firestore.Client(project=config.project_id, database=config.database)
-        ),
+        FirestoreReports(database),
         BucketObjects(storage.Client(project=config.project_id), config.bucket),
+        FirestoreFolderShares(database),
         config.owner_emails,
     )
     app = create_app(

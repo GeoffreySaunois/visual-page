@@ -59,7 +59,7 @@ def page_router(service: ReportService, identity: AccessIdentity) -> APIRouter:
             if error.status_code != 404:
                 raise
             return archive_response(request, page_name, service, identity)
-        report.authorize(user, False, service.owners)
+        report.authorize(user, False, service.access())
         return report_html(service, report)
 
     return routes

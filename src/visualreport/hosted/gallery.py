@@ -26,7 +26,7 @@ def gallery_entry(report: Report) -> Entry:
 
 
 def gallery_html(service: ReportService, email: str) -> str:
-    versions = service.reports.gallery(email, email in service.owners)
+    versions = service.gallery(email)
     entries = [gallery_entry(report) for report in versions]
     entries.sort(key=lambda entry: entry.sort_key, reverse=True)
     return render(entries)

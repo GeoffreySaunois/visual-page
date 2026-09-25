@@ -29,14 +29,12 @@ def token() -> str:
         ) from None
 
 
+def api(path: str, payload: dict | None, method: str) -> dict:
+    return exchange(ORIGIN, token(), path, payload, method)
+
+
 def request(document: str, suffix: str, payload: dict | None, method: str) -> dict:
-    return exchange(
-        ORIGIN,
-        token(),
-        "/api/documents/" + quote(document, safe="") + suffix,
-        payload,
-        method,
-    )
+    return api("/api/documents/" + quote(document, safe="") + suffix, payload, method)
 
 
 def publish(page: Path, source: Path, rehome_comments: bool) -> str:

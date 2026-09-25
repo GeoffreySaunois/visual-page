@@ -35,16 +35,21 @@ class MemoryReports:
             raise HTTPException(404)
         return self.current.model_copy(deep=True)
 
-    def visible(self, email, administrator):
-        if administrator or email == self.current.owner or email in self.current.grants:
+    def visible(self, email, administrator, folders):
+        if (
+            administrator
+            or email == self.current.owner
+            or email in self.current.grants
+            or self.current.folder in folders
+        ):
             return [self.current.model_copy(deep=True)]
         return []
 
     def archive(self, path):
         raise HTTPException(404)
 
-    def gallery(self, email, administrator):
-        return self.visible(email, administrator)
+    def gallery(self, email, administrator, folders):
+        return self.visible(email, administrator, folders)
 
     def history(self, document_id):
         return [self.read(document_id)]
@@ -62,6 +67,22 @@ class MemoryReports:
         updated = change(self.read(document_id))
         self.current = updated.model_copy(deep=True)
         return updated
+
+
+class MemoryFolderShares:
+    def __init__(self):
+        self.grants = {}
+
+    def all(self):
+        return {folder: dict(grants) for folder, grants in self.grants.items()}
+
+    def share(self, folder, recipient, role):
+        grants = self.grants.setdefault(folder, {})
+        if role is None:
+            grants.pop(recipient, None)
+        else:
+            grants[recipient] = role
+        return dict(grants)
 
 
 class MemoryObjects:
@@ -96,7 +117,7 @@ def environment():
         revision=1,
     )
     repository = MemoryReports(report)
-    service = ReportService(repository, MemoryObjects(), {OWNER})
+    service = ReportService(repository, MemoryObjects(), MemoryFolderShares(), {OWNER})
     client = TestClient(create_app(service, identity, "https://artefacts.saunois.xyz"))
 
     def token(email, changes):
@@ -304,3 +325,74 @@ def test_anchored_comment_rejected_if_report_changes_before_transaction(environm
         )
     assert error.value.status_code == 409
     assert repository.current.threads.threads == []
+
+
+def share_folder(client, token, email, folder, recipient, role):
+    return client.put(
+        f"/api/folders/{folder}/shares",
+        headers=headers(token, email),
+        json={"email": recipient, "role": role},
+    )
+
+
+@pytest.mark.parametrize(
+    ("granted", "opens"),
+    [
+        ("personal/tooling", True),
+        ("personal", True),
+        ("personal/azul", False),
+        ("swaap", False),
+    ],
+)
+def test_folder_grant_opens_reports_in_that_folder_and_below_only(
+    environment, granted, opens
+):
+    client, _, _, token = environment
+    assert share_folder(client, token, OWNER, granted, BOB, "reader").status_code == 200
+    bob = headers(token, BOB)
+    assert (client.get("/reports/report-demo", headers=bob).status_code == 200) is opens
+    assert ("Private title" in client.get("/", headers=bob).text) is opens
+    listed = client.get("/api/documents", headers=bob).json()["documents"]
+    assert bool(listed) is opens
+
+
+def test_folder_revocation_closes_reports_opened_by_the_folder(environment):
+    client, _, _, token = environment
+    share_folder(client, token, OWNER, "personal/tooling", BOB, "reader")
+    share_folder(client, token, OWNER, "personal/tooling", BOB, None)
+    assert (
+        client.get("/reports/report-demo", headers=headers(token, BOB)).status_code
+        == 404
+    )
+
+
+def test_effective_role_is_the_strongest_of_report_and_folder_grants(environment):
+    client, repository, _, token = environment
+    path = "/api/documents/report-demo/threads"
+    comment = {"body": "hello", "anchor": None}
+    bob = headers(token, BOB)
+    share_folder(client, token, OWNER, "personal", BOB, "reader")
+    assert client.post(path, headers=bob, json=comment).status_code == 403
+    repository.current.grants[ALICE] = Role.READER
+    share_folder(client, token, OWNER, "personal/tooling", ALICE, "commenter")
+    assert (
+        client.post(path, headers=headers(token, ALICE), json=comment).status_code
+        == 200
+    )
+
+
+def test_only_the_archive_owner_shares_folders_and_only_real_ones(environment):
+    client, _, service, token = environment
+    assert (
+        share_folder(
+            client, token, ALICE, "personal/tooling", BOB, "reader"
+        ).status_code
+        == 403
+    )
+    assert (
+        share_folder(
+            client, token, OWNER, "personal/nowhere", BOB, "reader"
+        ).status_code
+        == 404
+    )
+    assert service.folder_shares.all() == {}
