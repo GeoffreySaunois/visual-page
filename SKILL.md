@@ -130,6 +130,7 @@ with the explicit instruction that every paragraph is carried word-for-word.
      | `swaap/research` | models, providers, papers, literature reviews |
      | `personal` | personal work that fits none of the folders below |
      | `personal/azul` | the Azul product: plans, PR recaps, UI, QA, demos, pitch |
+     | `personal/medical-copilot` | the Medical Copilot product: vision, plans, PR recaps, UI |
      | `personal/travel` | roadbooks, lodging, activities |
      | `personal/admin` | mail, reminders, paperwork |
      | `personal/markets` | Polymarket, quant analyses outside Swaap |

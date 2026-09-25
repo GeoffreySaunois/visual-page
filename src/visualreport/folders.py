@@ -72,6 +72,11 @@ TAXONOMY: tuple[Folder, ...] = (
         "Azul",
         "le produit Azul : plans, recaps de PR, UI, QA, démos, pitch",
     ),
+    Folder(
+        "personal/medical-copilot",
+        "Medical Copilot",
+        "le copilote vocal médical : vision, plans, recaps de PR, UI",
+    ),
     Folder("personal/travel", "Voyages", "roadbooks, logements, activités"),
     Folder("personal/admin", "Organisation", "mails, rappels, démarches"),
     Folder(
