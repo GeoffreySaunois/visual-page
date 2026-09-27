@@ -3,9 +3,14 @@
 from ..reports import Report
 from .snapshot import digest
 
+UNSHARED = {"grants": {}, "everyone": None}
+
 
 def fingerprint(report: Report) -> str:
-    return digest(report.model_dump_json().encode())
+    # Sharing is not imported content: callers blank `grants` (UNSHARED), and
+    # `everyone` stays out of the digest so it equals the baselines stored in
+    # Firestore by imports that predate that field.
+    return digest(report.model_dump_json(exclude={"everyone"}).encode())
 
 
 def reconcile(
@@ -27,14 +32,18 @@ def reconcile(
         return current, previous, False
     # Grant changes are independent of imported content and must survive updates.
     comparison = current.model_copy(
-        update={"grants": {}, "revision": previous["revision"]}
+        update={**UNSHARED, "revision": previous["revision"]}
     )
     if fingerprint(comparison) != previous["applied"]:
         raise ValueError(
             f"Local and hosted report both changed: {incoming.document_id}; neither overwritten"
         )
     updated = incoming.model_copy(
-        update={"grants": current.grants, "revision": current.revision + 1}
+        update={
+            "grants": current.grants,
+            "everyone": current.everyone,
+            "revision": current.revision + 1,
+        }
     )
-    marker["applied"] = fingerprint(updated.model_copy(update={"grants": {}}))
+    marker["applied"] = fingerprint(updated.model_copy(update=UNSHARED))
     return updated, marker, True

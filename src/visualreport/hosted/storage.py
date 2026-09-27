@@ -9,7 +9,8 @@ from fastapi import HTTPException
 from google.cloud import firestore, storage
 from google.cloud.firestore_v1.base_query import FieldFilter
 
-from .reports import Report, Role, page_fields
+from .grants import NO_GRANTS, Grantee, Grants, Role
+from .reports import Report, page_fields
 
 
 class Reports(Protocol):
@@ -33,10 +34,8 @@ class Reports(Protocol):
 
 
 class FolderShares(Protocol):
-    def all(self) -> dict[str, dict[str, Role]]: ...
-    def share(
-        self, folder: str, recipient: str, role: Role | None
-    ) -> dict[str, Role]: ...
+    def all(self) -> dict[str, Grants]: ...
+    def share(self, folder: str, grantee: Grantee, role: Role | None) -> Grants: ...
 
 
 class Objects(Protocol):
@@ -61,18 +60,26 @@ class FirestoreReports:
         self, email: str, administrator: bool, folders: list[str]
     ) -> list[Report]:
         """Reports `email` may read: all for an administrator, otherwise those
-        naming it as a member plus those filed in a folder shared with it."""
+        naming it as a member, those open to every verified email and those
+        filed in a folder shared with it."""
         if administrator:
             rows = list(self.collection.stream())
         else:
             members = FieldFilter("members", "array_contains", email)
-            rows = list(self.collection.where(filter=members).stream()) + [
-                row
-                for chunk in chunks(folders)
-                for row in self.collection.where(
-                    filter=FieldFilter("report.folder", "in", chunk)
-                ).stream()
-            ]
+            everyone = FieldFilter(
+                "report.everyone", "in", [role.value for role in Role]
+            )
+            rows = (
+                list(self.collection.where(filter=members).stream())
+                + list(self.collection.where(filter=everyone).stream())
+                + [
+                    row
+                    for chunk in chunks(folders)
+                    for row in self.collection.where(
+                        filter=FieldFilter("report.folder", "in", chunk)
+                    ).stream()
+                ]
+            )
         reports = [Report.model_validate(row.to_dict()["report"]) for row in rows]
         return list({report.document_id: report for report in reports}.values())
 
@@ -177,35 +184,47 @@ class FirestoreReports:
 
 
 class FirestoreFolderShares:
-    """One document per shared folder: `{folder, grants}`."""
+    """One document per shared folder: `{folder, grants, everyone}` — the email
+    grants, and the role granted to every verified email (null when none)."""
 
     def __init__(self, client: firestore.Client):
         self.client = client
         self.collection = client.collection("folder_shares")
 
-    def all(self) -> dict[str, dict[str, Role]]:
+    def all(self) -> dict[str, Grants]:
         return {
-            (data := row.to_dict())["folder"]: {
-                email: Role(role) for email, role in data["grants"].items()
-            }
+            (data := row.to_dict())["folder"]: folder_grants(data)
             for row in self.collection.stream()
         }
 
-    def share(self, folder: str, recipient: str, role: Role | None) -> dict[str, Role]:
+    def share(self, folder: str, grantee: Grantee, role: Role | None) -> Grants:
         reference = self.collection.document(page_id(folder))
 
         @firestore.transactional
         def commit(transaction):
             snapshot = reference.get(transaction=transaction)
-            grants = snapshot.to_dict()["grants"] if snapshot.exists else {}
-            if role is None:
-                grants.pop(recipient, None)
-            else:
-                grants[recipient] = role.value
-            transaction.set(reference, {"folder": folder, "grants": grants})
-            return {email: Role(value) for email, value in grants.items()}
+            current = (
+                folder_grants(snapshot.to_dict()) if snapshot.exists else NO_GRANTS
+            )
+            updated = current.granting(grantee, role)
+            stored = updated.model_dump(mode="json")
+            transaction.set(
+                reference,
+                {
+                    "folder": folder,
+                    "grants": stored["emails"],
+                    "everyone": stored["everyone"],
+                },
+            )
+            return updated
 
         return commit(self.client.transaction())
+
+
+def folder_grants(data: dict) -> Grants:
+    # Folder documents written before the grant to every verified email carry
+    # no `everyone` field: absent means not open to everyone.
+    return Grants(emails=data["grants"], everyone=data.get("everyone"))
 
 
 def chunks(values: list[str]) -> list[list[str]]:

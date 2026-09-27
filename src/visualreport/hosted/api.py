@@ -3,14 +3,14 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..comments import AuthorKind, report_view
 from ..server.api import AnchorRequest
 from .comments import CommentAction
+from .grants import EVERYONE, Grantee, Role
 from .identity import AccessIdentity
 from .publication import Publication, publish
-from .reports import Role
 from .service import ReportService
 
 
@@ -30,17 +30,33 @@ class NewThread(Message):
 
 
 class Share(BaseModel):
+    """A grant to exactly one grantee: an `email`, or `everyone` verified."""
+
     model_config = ConfigDict(extra="forbid")
-    email: str
+    # Public API: a request names its grantee with whichever of the two it uses.
+    email: str | None = None
+    everyone: bool = False
     role: Role | None
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, value: str) -> str:
+    def validate_email(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         value = value.strip().lower()
         if "@" not in value or len(value) > 254 or any(c.isspace() for c in value):
             raise ValueError("Expected an email address")
         return value
+
+    @model_validator(mode="after")
+    def one_grantee(self):
+        if (self.email is None) == (not self.everyone):
+            raise ValueError("Expected exactly one of email or everyone")
+        return self
+
+    @property
+    def grantee(self) -> Grantee:
+        return EVERYONE if self.everyone else self.email
 
 
 def router(service: ReportService, identity: AccessIdentity) -> APIRouter:
@@ -67,23 +83,27 @@ def router(service: ReportService, identity: AccessIdentity) -> APIRouter:
 
     @routes.put("/documents/{document_id}/shares")
     def share(document_id: str, body: Share, email: User):
-        report = service.share(document_id, email, body.email, body.role)
-        return {"grants": report.grants}
+        report = service.share(document_id, email, body.grantee, body.role)
+        return {"grants": report.sharing.model_dump(mode="json")}
 
     @routes.get("/documents/{document_id}/shares")
     def shares(document_id: str, email: User):
         report = service.read(document_id, email)
         report.authorize_owner(email, service.access())
-        return {"owner": report.owner, "grants": report.grants}
+        return {"owner": report.owner, "grants": report.sharing.model_dump(mode="json")}
 
     @routes.put("/folders/{folder:path}/shares")
     def share_folder(folder: str, body: Share, email: User):
-        return {"grants": service.share_folder(email, folder, body.email, body.role)}
+        grants = service.share_folder(email, folder, body.grantee, body.role)
+        return {"grants": grants.model_dump(mode="json")}
 
     @routes.get("/shares")
     def all_shares(email: User):
         by_folder, by_document = service.shares(email)
-        return {"folders": by_folder, "documents": by_document}
+        return {
+            "folders": {k: g.model_dump(mode="json") for k, g in by_folder.items()},
+            "documents": {k: g.model_dump(mode="json") for k, g in by_document.items()},
+        }
 
     @routes.get("/documents/{document_id}/threads")
     def threads(document_id: str, email: User):

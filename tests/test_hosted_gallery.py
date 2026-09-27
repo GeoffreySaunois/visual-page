@@ -12,6 +12,7 @@ def report(page_name: str, folder: str, title: str) -> Report:
         title=title,
         owner="owner@example.com",
         grants={},
+        everyone=None,
         page_name=page_name,
         html_key="page",
         source_key=None,

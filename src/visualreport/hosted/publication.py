@@ -80,6 +80,7 @@ def publish(
             date=published_date,
             owner=current.owner if current else email,
             grants=current.grants if current else {},
+            everyone=current.everyone if current else None,
             page_name=publication.page_name,
             html_key=html_key,
             source_key=source_key,

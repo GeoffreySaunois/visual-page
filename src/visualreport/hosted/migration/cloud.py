@@ -72,6 +72,7 @@ class Importer:
             document_id=record["document_id"],
             owner=self.owner,
             grants={},
+            everyone=None,
             threads=threads,
             revision=1,
         )
