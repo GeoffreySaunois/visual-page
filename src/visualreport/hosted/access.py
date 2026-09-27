@@ -2,15 +2,16 @@
 
 A folder grant covers every report filed in that folder or any folder nested
 under it, including reports published after the grant. A reader's effective
-role on a report is the strongest of its report grant and its folder grants.
+role on a report is the strongest of its report grant and its folder grants,
+each counting both the reader's own email and every verified email.
 """
 
 from dataclasses import dataclass
 
 from .. import folders
-from .reports import Role, strongest
+from .grants import Grants, Role, strongest
 
-FolderGrants = dict[str, dict[str, Role]]
+FolderGrants = dict[str, Grants]
 
 
 def covers(granted: str, folder: str) -> bool:
@@ -28,7 +29,7 @@ class Access:
     def folder_role(self, folder: str, email: str) -> Role | None:
         return strongest(
             [
-                grants.get(email)
+                grants.role(email)
                 for granted, grants in self.folder_grants.items()
                 if covers(granted, folder)
             ]
@@ -37,7 +38,9 @@ class Access:
     def covered_folders(self, email: str) -> list[str]:
         """Every taxonomy folder a folder grant opens to `email`."""
         granted = [
-            path for path, grants in self.folder_grants.items() if email in grants
+            path
+            for path, grants in self.folder_grants.items()
+            if grants.role(email) is not None
         ]
         return [
             entry.path

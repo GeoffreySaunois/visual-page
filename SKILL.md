@@ -274,8 +274,9 @@ not archived gets the meta tag written straight into its HTML.
 
 **Reaching it.** The gallery is **https://artefacts.saunois.xyz**. Cloudflare Access
 verifies email ownership; the hosted backend enforces permissions per report.
-To let someone else in, `visual-report share <email> --document <id> | --folder <path>
---role reader|commenter|revoke` (a folder covers its subfolders and future pages);
+To let someone else in, `visual-report share <email> | --everyone --document <id> | --folder <path>
+--role reader|commenter|revoke` (a folder covers its subfolders and future pages;
+`--everyone` opens it to every email Cloudflare Access verified);
 `visual-report shares` lists every grant. See `docs/remote-access.md`.
 `render --serve` publishes remotely, and comment CLI commands read/write the hosted
 store by default. No local daemon, login agent or reverse tunnel is required.

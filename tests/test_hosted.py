@@ -12,8 +12,9 @@ from fastapi.testclient import TestClient
 from visualreport.comments import AuthorKind, ReportThreads
 from visualreport.hosted.app import create_app
 from visualreport.hosted.comments import CommentAction
+from visualreport.hosted.grants import NO_GRANTS, Role
 from visualreport.hosted.identity import AccessIdentity
-from visualreport.hosted.reports import Report, Role
+from visualreport.hosted.reports import Report
 from visualreport.hosted.service import ReportService
 
 ISSUER = "https://example.cloudflareaccess.com"
@@ -40,6 +41,7 @@ class MemoryReports:
             administrator
             or email == self.current.owner
             or email in self.current.grants
+            or self.current.everyone is not None
             or self.current.folder in folders
         ):
             return [self.current.model_copy(deep=True)]
@@ -74,15 +76,12 @@ class MemoryFolderShares:
         self.grants = {}
 
     def all(self):
-        return {folder: dict(grants) for folder, grants in self.grants.items()}
+        return dict(self.grants)
 
-    def share(self, folder, recipient, role):
-        grants = self.grants.setdefault(folder, {})
-        if role is None:
-            grants.pop(recipient, None)
-        else:
-            grants[recipient] = role
-        return dict(grants)
+    def share(self, folder, grantee, role):
+        current = self.grants.get(folder, NO_GRANTS)
+        self.grants[folder] = current.granting(grantee, role)
+        return self.grants[folder]
 
 
 class MemoryObjects:
@@ -110,6 +109,7 @@ def environment():
         date="2026-09-21",
         owner=OWNER,
         grants={ALICE: Role.COMMENTER},
+        everyone=None,
         page_name="report-demo-2026-09-21.html",
         html_key="page",
         source_key="source",
@@ -396,3 +396,151 @@ def test_only_the_archive_owner_shares_folders_and_only_real_ones(environment):
         == 404
     )
     assert service.folder_shares.all() == {}
+
+
+def share_everyone(client, token, email, target, role):
+    return client.put(
+        f"/api/{target}/shares",
+        headers=headers(token, email),
+        json={"everyone": True, "role": role},
+    )
+
+
+DOCUMENT = "documents/report-demo"
+COMMENT = {"body": "hello", "anchor": None}
+THREADS = "/api/documents/report-demo/threads"
+
+
+@pytest.mark.parametrize("target", [DOCUMENT, "folders/personal"])
+def test_everyone_grant_opens_the_report_to_any_verified_email(environment, target):
+    client, _, _, token = environment
+    assert share_everyone(client, token, OWNER, target, "reader").status_code == 200
+    stranger = headers(token, "stranger@elsewhere.org")
+    assert client.get("/reports/report-demo", headers=stranger).status_code == 200
+    assert client.get(THREADS, headers=stranger).status_code == 200
+    assert "Private title" in client.get("/", headers=stranger).text
+    assert client.get("/api/documents", headers=stranger).json()["documents"]
+    assert client.post(THREADS, headers=stranger, json=COMMENT).status_code == 403
+
+
+@pytest.mark.parametrize("target", [DOCUMENT, "folders/personal"])
+def test_everyone_grant_never_admits_an_unauthenticated_request(environment, target):
+    client, _, _, token = environment
+    share_everyone(client, token, OWNER, target, "commenter")
+    expired = {"Cf-Access-Jwt-Assertion": token(BOB, {"exp": 1})}
+    for request_headers in [{}, expired]:
+        for path in [
+            "/",
+            "/reports/report-demo",
+            "/report-demo-2026-09-21.html",
+            THREADS,
+        ]:
+            response = client.get(path, headers=request_headers)
+            assert response.status_code == 401
+            assert "Private title" not in response.text
+        assert (
+            client.post(THREADS, headers=request_headers, json=COMMENT).status_code
+            == 401
+        )
+
+
+def test_effective_role_is_the_strongest_across_everyone_email_and_folder_grants(
+    environment,
+):
+    client, repository, _, token = environment
+    repository.current.grants[ALICE] = Role.READER
+    share_everyone(client, token, OWNER, DOCUMENT, "reader")
+    alice, bob = headers(token, ALICE), headers(token, BOB)
+    assert client.post(THREADS, headers=alice, json=COMMENT).status_code == 403
+    share_everyone(client, token, OWNER, "folders/personal/tooling", "commenter")
+    assert client.post(THREADS, headers=alice, json=COMMENT).status_code == 200
+    assert client.post(THREADS, headers=bob, json=COMMENT).status_code == 200
+    share_everyone(client, token, OWNER, "folders/personal/tooling", None)
+    repository.current.grants[BOB] = Role.COMMENTER
+    assert client.post(THREADS, headers=bob, json=COMMENT).status_code == 200
+    assert client.post(THREADS, headers=alice, json=COMMENT).status_code == 403
+
+
+def test_revoking_everyone_closes_strangers_but_keeps_email_grants(environment):
+    client, repository, _, token = environment
+    share_everyone(client, token, OWNER, DOCUMENT, "reader")
+    share_everyone(client, token, OWNER, DOCUMENT, None)
+    bob = headers(token, BOB)
+    assert client.get("/reports/report-demo", headers=bob).status_code == 404
+    assert "Private title" not in client.get("/", headers=bob).text
+    assert repository.current.grants == {ALICE: Role.COMMENTER}
+    assert (
+        client.get("/reports/report-demo", headers=headers(token, ALICE)).status_code
+        == 200
+    )
+
+
+@pytest.mark.parametrize("target", [DOCUMENT, "folders/personal"])
+def test_only_the_owner_opens_to_everyone_and_an_everyone_grantee_cannot_reshare(
+    environment, target
+):
+    client, repository, service, token = environment
+    assert share_everyone(client, token, ALICE, target, "reader").status_code == 403
+    assert repository.current.everyone is None
+    assert service.folder_shares.all() == {}
+    share_everyone(client, token, OWNER, target, "commenter")
+    bob = headers(token, BOB)
+    assert share_everyone(client, token, BOB, target, None).status_code == 403
+    assert (
+        client.post(
+            THREADS, headers=bob, json={**COMMENT, "actor": "agent"}
+        ).status_code
+        == 403
+    )
+    assert client.get("/api/shares", headers=bob).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"email": BOB, "everyone": True, "role": "reader"},
+        {"role": "reader"},
+        {"email": "*", "role": "reader"},
+        {"email": "everyone", "role": "reader"},
+    ],
+)
+def test_a_share_names_exactly_one_real_grantee(environment, body):
+    client, repository, _, token = environment
+    response = client.put(
+        f"/api/{DOCUMENT}/shares", headers=headers(token, OWNER), json=body
+    )
+    assert response.status_code == 422
+    assert repository.current.everyone is None
+    assert repository.current.grants == {ALICE: Role.COMMENTER}
+
+
+def test_shares_lists_everyone_grants_apart_from_email_grants(environment):
+    client, _, _, token = environment
+    share_everyone(client, token, OWNER, DOCUMENT, "reader")
+    share_everyone(client, token, OWNER, "folders/personal", "commenter")
+    listed = client.get("/api/shares", headers=headers(token, OWNER)).json()
+    assert listed["documents"]["report-demo"] == {
+        "emails": {ALICE: "commenter"},
+        "everyone": "reader",
+    }
+    assert listed["folders"]["personal"] == {"emails": {}, "everyone": "commenter"}
+
+
+def test_republication_keeps_the_everyone_grant(environment):
+    # A republished report is rebuilt from scratch: dropping `everyone` there
+    # would silently close a report the owner opened to every verified email.
+    from visualreport.hosted.publication import Publication, publish
+
+    client, repository, _, token = environment
+    share_everyone(client, token, OWNER, DOCUMENT, "reader")
+    publication = Publication(
+        page_name="report-demo-2026-09-22.html",
+        title="New version",
+        html="<html>report-demo</html>",
+        source=SOURCE,
+    )
+    objects = SimpleNamespace(upload=lambda *args: ("new-page", "new-source"))
+    assert (
+        publish(repository, objects, publication, OWNER, {OWNER}).everyone
+        == Role.READER
+    )

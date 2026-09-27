@@ -7,7 +7,8 @@ from fastapi import HTTPException
 from .. import folders
 from .access import Access, FolderGrants
 from .comments import CommentAction
-from .reports import Report, Role
+from .grants import Grantee, Grants, Role
+from .reports import Report
 from .storage import FolderShares, Objects, Reports
 
 
@@ -59,38 +60,40 @@ class ReportService:
         return self.reports.mutate(document_id, change, None)
 
     def share(
-        self, document_id: str, email: str, recipient: str, role: Role | None
+        self, document_id: str, email: str, grantee: Grantee, role: Role | None
     ) -> Report:
         def change(current: Report | None) -> Report:
             if current is None:
                 raise HTTPException(404, "Report not found")
             current.authorize_owner(email, self.access())
-            if role is None:
-                current.grants.pop(recipient, None)
-            else:
-                current.grants[recipient] = role
+            current.share(grantee, role)
             current.revision += 1
             return current
 
         return self.reports.mutate(document_id, change, None)
 
     def share_folder(
-        self, email: str, folder: str, recipient: str, role: Role | None
-    ) -> dict[str, Role]:
+        self, email: str, folder: str, grantee: Grantee, role: Role | None
+    ) -> Grants:
         self.require_owner(email)
         if folders.folder(folder) is None:
             raise HTTPException(404, "Unknown folder")
-        return self.folder_shares.share(folder, recipient, role)
+        return self.folder_shares.share(folder, grantee, role)
 
-    def shares(self, email: str) -> tuple[FolderGrants, dict[str, dict[str, Role]]]:
+    def shares(self, email: str) -> tuple[FolderGrants, dict[str, Grants]]:
         """Every grant in the archive: by folder, then by report."""
         self.require_owner(email)
         reports = {
-            report.document_id: report.grants
+            report.document_id: report.sharing
             for report in self.reports.visible(email, True, [])
-            if report.grants
+            if not report.sharing.empty
         }
-        return self.folder_shares.all(), reports
+        folder_grants = {
+            path: grants
+            for path, grants in self.folder_shares.all().items()
+            if not grants.empty
+        }
+        return folder_grants, reports
 
     def require_owner(self, email: str) -> None:
         if email not in self.owners:

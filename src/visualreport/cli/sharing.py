@@ -7,12 +7,20 @@ from urllib.parse import quote
 
 from . import console, remote
 
+EVERYONE_LABEL = "tout email vérifié"
+
 
 def add_parsers(subparsers: argparse._SubParsersAction) -> None:
     share = subparsers.add_parser(
         "share", help="donner ou retirer l'accès à un document ou à un dossier"
     )
-    share.add_argument("email", help="l'adresse de la personne invitée")
+    grantee = share.add_mutually_exclusive_group(required=True)
+    grantee.add_argument("email", nargs="?", help="l'adresse de la personne invitée")
+    grantee.add_argument(
+        "--everyone",
+        action="store_true",
+        help="toute personne dont Cloudflare Access a vérifié l'email",
+    )
     target = share.add_mutually_exclusive_group(required=True)
     target.add_argument("--document", help="un document (<kind>-<slug>)")
     target.add_argument(
@@ -35,20 +43,26 @@ def run_share(args: argparse.Namespace) -> None:
         else f"/api/folders/{quote(args.folder, safe='/')}/shares"
     )
     role = None if args.role == "revoke" else args.role
-    remote.api(path, {"email": args.email, "role": role}, "PUT")
-    console.say(f"{args.document or args.folder + '/'} : {args.email} — {args.role}")
+    grantee = {"everyone": True} if args.everyone else {"email": args.email}
+    remote.api(path, {**grantee, "role": role}, "PUT")
+    who = EVERYONE_LABEL if args.everyone else args.email
+    console.say(f"{args.document or args.folder + '/'} : {who} — {args.role}")
 
 
 def run_shares(args: argparse.Namespace) -> None:
     result = remote.api("/api/shares", None, "GET")
-    for heading, grants in (
+    for heading, targets in (
         ("dossiers", {f"{path}/": g for path, g in result["folders"].items()}),
         ("documents", result["documents"]),
     ):
         console.say(heading)
-        shared = {target: g for target, g in sorted(grants.items()) if g}
-        if not shared:
+        if not targets:
             console.say("  (aucun partage)")
-        for target, grants_of in shared.items():
-            for email, role in sorted(grants_of.items()):
-                console.say(f"  {target:<48} {email:<32} {role}")
+        for target, grants in sorted(targets.items()):
+            for who, role in grant_rows(grants):
+                console.say(f"  {target:<48} {who:<32} {role}")
+
+
+def grant_rows(grants: dict) -> list[tuple[str, str]]:
+    everyone = [(EVERYONE_LABEL, grants["everyone"])] if grants["everyone"] else []
+    return everyone + sorted(grants["emails"].items())

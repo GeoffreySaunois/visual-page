@@ -1,28 +1,15 @@
 """Report ownership, sharing and comment permissions."""
 
-from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..comments import ReportThreads
+from .grants import Grantee, Grants, Role, strongest
 
 if TYPE_CHECKING:
     from .access import Access
-
-
-class Role(StrEnum):
-    READER = "reader"
-    COMMENTER = "commenter"
-
-
-STRENGTH = {Role.READER: 1, Role.COMMENTER: 2}
-
-
-def strongest(roles: list[Role | None]) -> Role | None:
-    granted = [role for role in roles if role is not None]
-    return max(granted, key=STRENGTH.__getitem__, default=None)
 
 
 class Report(BaseModel):
@@ -36,15 +23,26 @@ class Report(BaseModel):
     date: str
     owner: str
     grants: dict[str, Role]
+    # Reports stored before the grant to every verified email existed carry no
+    # such field: absent means not open to everyone.
+    everyone: Role | None = None
     page_name: str
     html_key: str
     source_key: str | None
     threads: ReportThreads
     revision: int = Field(ge=1)
 
+    @property
+    def sharing(self) -> Grants:
+        return Grants(emails=self.grants, everyone=self.everyone)
+
+    def share(self, grantee: Grantee, role: Role | None) -> None:
+        updated = self.sharing.granting(grantee, role)
+        self.grants, self.everyone = dict(updated.emails), updated.everyone
+
     def role(self, email: str, access: "Access") -> Role | None:
         return strongest(
-            [self.grants.get(email), access.folder_role(self.folder, email)]
+            [self.sharing.role(email), access.folder_role(self.folder, email)]
         )
 
     def authorize(self, email: str, write: bool, access: "Access") -> None:

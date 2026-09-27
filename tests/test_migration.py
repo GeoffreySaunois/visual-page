@@ -5,10 +5,11 @@ from types import SimpleNamespace
 import pytest
 
 from visualreport.comments import CLAUDE, GEOFFREY, ReportThreads, now_utc
+from visualreport.hosted.grants import Role
 from visualreport.hosted.migration.merge import reconcile
 from visualreport.hosted.migration.snapshot import prepare
 from visualreport.hosted.publication import Publication, publish
-from visualreport.hosted.reports import Report, Role
+from visualreport.hosted.reports import Report
 
 
 def report():
@@ -25,6 +26,7 @@ def report():
         date="2026-09-21",
         owner="owner@example.com",
         grants={},
+        everyone=None,
         page_name="report-demo-2026-09-21.html",
         html_key="latest-html",
         source_key="latest-source",

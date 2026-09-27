@@ -32,19 +32,27 @@ user explicitly requesting it.
 ## Sharing
 
 A verified email without a grant sees nothing: no gallery card, a 404 on every
-report. The archive owner grants access per document or per folder:
+report. The archive owner grants access per document or per folder, to one email
+or to every verified email (`--everyone`: anyone who passes Cloudflare Access's
+one-time code):
 
 ```sh
 visual-report share alice@example.com --document report-my-topic --role reader
 visual-report share alice@example.com --folder personal/medical-copilot --role commenter
 visual-report share alice@example.com --folder personal/medical-copilot --role revoke
+visual-report share --everyone --document report-my-topic --role reader
+visual-report share --everyone --document report-my-topic --role revoke
 visual-report shares    # every grant, by folder then by document
 ```
 
 Readers can view; commenters can also discuss. A folder grant covers the folder,
-every folder nested under it and the reports published there later. A reader's
-role on a report is the strongest of its document grant and its folder grants, so
-revoking a folder leaves any document grant in place.
+every folder nested under it and the reports published there later. A report or
+folder open to everyone shows in every verified user's gallery. A reader's role on
+a report is the strongest of every grant that applies — its document and folder
+grants, to their email and to everyone — so revoking one leaves the others in
+place. The everyone grant is its own grantee, stored apart from the emails: it
+never matches an unauthenticated request, which is refused before any grant is
+read. Publishing, sharing and thread moderation stay with the owner.
 
 ## Optional local preview
 
