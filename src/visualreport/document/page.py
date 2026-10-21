@@ -23,7 +23,7 @@ from .libraries import head_libraries
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates"
 STYLE_ORDER = ("charte.css", "blocks.css", "iteration.css", "comments.css", "print.css")
-SCRIPT_ORDER = ("page.js", "comments.js")
+SCRIPT_ORDER = ("page.js", "comments.js", "paste.js")
 
 
 @dataclass(frozen=True)
