@@ -20,6 +20,7 @@ from pathlib import Path
 
 from .. import folders
 from ..branding import favicon_link
+from ..document.page import read_script
 from ..paths import Archive
 from .catalog import Entry, collect
 
@@ -43,6 +44,7 @@ def render(entries: list[Entry]) -> str:
         template.replace("{{DIRECTORIES}}", body)
         .replace("{{COUNT}}", html.escape(summary(entries)))
         .replace("{{FAVICON}}", favicon_link("gallery"))
+        .replace("{{NATIVE_PASTE}}", read_script("paste.js"))
     )
 
 
