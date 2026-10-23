@@ -83,6 +83,32 @@ mark.vr-anchor.resolved.active {
 .vr-commented.resolved { box-shadow: inset 3px 0 0 var(--vr-line-strong); }
 .vr-commented.active { box-shadow: inset 3px 0 0 var(--accent); }
 
+/* A commented figure (a thread on its whole block): the rule, an outline that
+   lights up when its thread is active, and a marker in the left gutter. */
+.vr-commented.vr-figure { position: relative; cursor: auto; }
+.vr-commented.vr-figure.active {
+  outline: 2px solid color-mix(in srgb, var(--vr-mark) 70%, transparent);
+  outline-offset: 4px; border-radius: 6px;
+}
+.vr-figure-marker {
+  position: absolute; top: 4px; left: -34px; z-index: 2;
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  border: 1px solid var(--vr-line-strong); border-radius: 8px;
+  background: var(--surface); color: var(--vr-muted); cursor: pointer;
+  box-shadow: var(--vr-input-shadow);
+}
+.vr-figure-marker .vr-icon { width: 14px; height: 14px; }
+.vr-figure-marker.open {
+  background: color-mix(in srgb, var(--vr-mark) var(--vr-mark-idle), var(--surface));
+  border-color: color-mix(in srgb, var(--vr-mark-rule) 45%, transparent); color: var(--text);
+}
+.vr-figure-marker:hover { color: var(--text); border-color: var(--vr-mark-rule); }
+.vr-figure-marker.active {
+  background: color-mix(in srgb, var(--vr-mark) var(--vr-mark-active), var(--surface));
+  border-color: var(--vr-mark-rule); color: var(--text);
+}
+.vr-figure-marker:focus-visible { outline: 2px solid var(--vr-ring); outline-offset: 1px; }
+
 /* ------------------------------------------------ The floating action ----- */
 .vr-selection-actions {
   position: fixed; z-index: 90; display: flex; padding: 3px;
@@ -364,6 +390,8 @@ mark.vr-anchor.resolved.active {
   }
   .vr-panel { border-left: 0; padding-bottom: env(safe-area-inset-bottom); }
   .vr-panel-resize { display: none; }
+  /* No gutter on a phone: the marker sits inside the figure's top-left corner. */
+  .vr-figure-marker { left: 6px; top: 6px; width: 36px; height: 36px; }
   .vr-panel-toolbar { height: 52px; }
   /* 44px is the smallest target a finger hits reliably. */
   .vr-icon-button { width: 44px; height: 44px; }
@@ -386,5 +414,6 @@ mark.vr-anchor.resolved.active {
 @media print {
   #vr-panel, .vr-selection-actions, .vr-menu { display: none !important; }
   mark.vr-anchor { background: none; border: 0; }
-  .vr-commented { box-shadow: none; padding-left: 0; }
+  .vr-commented { box-shadow: none; padding-left: 0; outline: 0; }
+  .vr-figure-marker { display: none !important; }
 }

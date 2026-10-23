@@ -8,7 +8,9 @@
    it instead of pretending to save, and no passage is offered for commenting.
 
    Threads are anchored on a block index plus the quoted words (with the text
-   just before and after them). Highlights are recomputed from the text at load
+   just before and after them). A figure — table, diagram, chart, image — has
+   no words to select, so it is commented as its whole block: the same anchor
+   with an empty quote, prefix and suffix. Highlights are recomputed from the text at load
    time rather than baked into the HTML, which is what lets a thread survive an
    edit: if the words moved inside the block they are found again, and if they
    are gone the block itself carries a rule in its margin.
@@ -32,7 +34,8 @@
     filter: "open",       /* "open" | "resolved" */
     active: null,         /* the thread emphasised in the panel and the document */
     api: null,            /* base URL once the server answered, null when offline */
-    passage: null,        /* the selection armed in the composer, for a new thread */
+    passage: null,        /* {anchor, label} armed in the composer for a new thread;
+                             `label` names a whole figure, null for a selection */
     replyTo: null,        /* the thread id the composer replies to */
     editing: null,        /* the comment being rewritten in place */
     pending: false        /* a composer write is in flight */
@@ -57,6 +60,7 @@
     bindKeyboard();
     bindDocumentClicks();
     Selection.bind();
+    bindFigureComments();
     publishViewport();
     paint();
     probeApi();
@@ -443,9 +447,10 @@
   /* The quoted passage, and the resolve/reopen action beside it. */
   function threadHeading(thread) {
     var heading = el("div", "vr-thread-heading");
-    heading.appendChild(thread.anchor
-      ? el("blockquote", "vr-quote", thread.anchor.quote)
-      : el("blockquote", "vr-quote whole", "Sur un bloc entier"));
+    if (!thread.anchor) heading.appendChild(el("blockquote", "vr-quote whole", "Sur tout le document"));
+    else if (wholeBlock(thread.anchor)) {
+      heading.appendChild(el("blockquote", "vr-quote whole", Figures.label(blockAt(thread.anchor.block_index))));
+    } else heading.appendChild(el("blockquote", "vr-quote", thread.anchor.quote));
     if (state.api) heading.appendChild(resolveButton(thread));
     return heading;
   }
@@ -467,7 +472,11 @@
     if (thread.is_open && thread.awaiting) {
       meta.appendChild(el("span", "vr-tag " + thread.awaiting, "attend " + AUTHOR_KINDS[thread.awaiting]));
     }
-    if (thread.state === "drifted") meta.appendChild(el("span", "vr-tag moved", "texte réécrit"));
+    /* A whole block has no quoted words to lose, so the server's « drifted »
+       (its quote no longer found) says nothing about it. */
+    if (thread.state === "drifted" && !wholeBlock(thread.anchor)) {
+      meta.appendChild(el("span", "vr-tag moved", "texte réécrit"));
+    }
     if (thread.state === "orphaned") meta.appendChild(el("span", "vr-tag moved", "bloc disparu"));
     if (thread.anchor && thread.anchor.section) {
       meta.appendChild(el("span", "vr-section", "§ " + thread.anchor.section));
@@ -582,7 +591,7 @@
     document.addEventListener("pointerdown", function (event) {
       if (!state.active) return;
       if (event.target.closest && event.target.closest(
-        ".vr-thread, .vr-composer, .vr-selection-actions, .vr-menu, mark.vr-anchor, .vr-commented, #comments-toggle"
+        ".vr-thread, .vr-composer, .vr-selection-actions, .vr-menu, mark.vr-anchor, .vr-commented, .vr-figure-marker, #comments-toggle"
       )) return;
       activate(null, null);
     });
@@ -793,7 +802,7 @@
       var form = el("form", "vr-composer idle");
       form.setAttribute("aria-label", "Écrire un commentaire");
 
-      ui.passageChip = chip("Passage à commenter", "Retirer le passage", function () { disarm(); focusField(); });
+      ui.passageChip = chip("Passage à commenter", "Retirer la cible", function () { disarm(); focusField(); });
       ui.replyChip = chip("Réponse à", "Annuler la réponse", function () { disarm(); focusField(); });
       ui.replyChip.classList.add("reply");
 
@@ -849,10 +858,14 @@
       ui.composerHint.hidden = !online || targeted;
       ui.passageChip.hidden = !online || !state.passage;
       ui.replyChip.hidden = !online || !state.replyTo;
-      if (state.passage) ui.passageChip.querySelector(".vr-chip-quote").textContent = state.passage.quote;
+      if (state.passage) {
+        ui.passageChip.querySelector("small").textContent = state.passage.label ? "Figure à commenter" : "Passage à commenter";
+        ui.passageChip.querySelector(".vr-chip-quote").textContent = state.passage.label || state.passage.anchor.quote;
+      }
       if (state.replyTo) ui.replyChip.querySelector(".vr-chip-quote").textContent = replyLabel(findThread(state.replyTo));
       var label = state.replyTo ? "Répondre" : "Commenter";
-      ui.field.placeholder = state.replyTo ? "Répondre…" : "Commenter ce passage…";
+      ui.field.placeholder = state.replyTo ? "Répondre…"
+        : state.passage && state.passage.label ? "Commenter cette figure…" : "Commenter ce passage…";
       ui.field.setAttribute("aria-label", ui.field.placeholder);
       ui.field.disabled = state.pending;
       ui.submit.textContent = label;
@@ -883,7 +896,8 @@
     }
 
     function retarget() {
-      var key = state.replyTo ? "reply:" + state.replyTo : (state.passage ? "passage" : null);
+      var key = state.replyTo ? "reply:" + state.replyTo
+        : state.passage ? "passage:" + state.passage.anchor.block_index + ":" + state.passage.anchor.quote : null;
       if (key === draftKey) return;
       if (draftKey) drafts[draftKey] = ui.field.value;
       draftKey = key;
@@ -893,6 +907,8 @@
     function saveDraft() { if (draftKey) drafts[draftKey] = ui.field.value; }
     function forgetDraft() { if (draftKey) delete drafts[draftKey]; }
 
+    /* `passage` is {anchor, label}: the anchor the API receives, and the figure's
+       label when the whole block is commented. */
     function arm(passage) {
       state.passage = passage;
       state.replyTo = null;
@@ -929,7 +945,7 @@
     function submit() {
       var body = ui.field.value.trim();
       if (state.pending || !body || !(state.passage || state.replyTo)) return;
-      var write = state.replyTo ? Api.reply(state.replyTo, body) : Api.openThread(state.passage, body);
+      var write = state.replyTo ? Api.reply(state.replyTo, body) : Api.openThread(state.passage.anchor, body);
       state.pending = true;
       controls();
       write.then(function () {
@@ -1102,7 +1118,7 @@
          selection lives, and the composer's chip already carries the passage. */
       var selection = window.getSelection();
       if (selection) selection.removeAllRanges();
-      Composer.arm(passage);
+      Composer.arm({ anchor: passage, label: null });
     }
 
     window.addEventListener("scroll", hide, { passive: true });
@@ -1129,6 +1145,47 @@
     return after.toString().slice(0, 60);
   }
 
+  /* ============================================================= Figures === */
+  /* A figure's comment button (drawn by the document's own scripts) asks for a
+     thread on its whole block through `vr-figure-comment`, with the block and a
+     short label (« Tableau : … », « Diagramme »…). */
+  function bindFigureComments() {
+    document.addEventListener("vr-figure-comment", function (event) {
+      var detail = event.detail || {};
+      var block = detail.block && detail.block.closest ? detail.block.closest("[data-vr-block]") : null;
+      if (!block) return;
+      if (!state.api) { Panel.show(true); return; }   /* the composer says why it cannot write */
+      Selection.hide();
+      Composer.arm({
+        anchor: { block_index: parseInt(block.getAttribute("data-vr-block"), 10), quote: "", prefix: "", suffix: "" },
+        label: (detail.label || "").trim() || Figures.label(block)
+      });
+    });
+  }
+
+  /* A thread on a whole block: an anchor whose quote is empty. */
+  function wholeBlock(anchor) { return Boolean(anchor) && !String(anchor.quote || "").trim(); }
+
+  function blockAt(index) { return document.querySelector('main [data-vr-block="' + index + '"]'); }
+
+  /* The name of a figure as its card says it, read from the block itself, for a
+     thread whose label was not stored. */
+  var Figures = {
+    label: function (block) {
+      if (!block) return "Bloc entier";
+      var caption = block.querySelector("figcaption, caption, .chart-title, .fig-title");
+      var title = caption ? collapse(caption.textContent).trim() : "";
+      var image = block.querySelector("img");
+      var kind = block.querySelector("table") ? "Tableau"
+        : block.querySelector(".mermaid") ? "Diagramme"
+        : block.querySelector("canvas") ? "Graphique"
+        : image ? "Image" : null;
+      if (!title && image) title = (image.getAttribute("alt") || "").trim();
+      if (!kind) return title ? "Bloc : " + title : "Bloc entier";
+      return title ? kind + " : " + title : kind;
+    }
+  };
+
   /* ========================================================== Highlights === */
   /* Every thread marks its passage, resolved ones faintly, so the filter the
      panel happens to show never hides a passage someone commented on. The
@@ -1136,6 +1193,8 @@
   var Highlights = (function () {
     var MARK = "vr-anchor";
     var BLOCK = "vr-commented";
+    /* What a click on a commented block must leave to its own handler. */
+    var FIGURE_SURFACE = "a, button, input, textarea, summary, img, canvas, svg, .mermaid, th";
 
     function paint() {
       clear();
@@ -1143,6 +1202,7 @@
         if (!thread.anchor || thread.state === "orphaned") return;
         var block = document.querySelector('main [data-vr-block="' + thread.anchor.block_index + '"]');
         if (!block) return;
+        if (wholeBlock(thread.anchor)) return markFigure(block, thread);
         if (thread.state === "drifted") return flagBlock(block, thread);
         var quote = collapse(thread.anchor.quote).trim();
         var view = TextView.read(block);
@@ -1207,7 +1267,38 @@
       block.setAttribute("data-thread", thread.id);
     }
 
+    /* A commented figure carries the margin rule and an outline, plus a marker
+       in its corner: the figure's own surface (an image, a diagram, a table
+       header) keeps its clicks for zooming and sorting, so the marker is where
+       its threads are reached. Several threads on one figure share the marker,
+       which steps through them. */
+    function markFigure(block, thread) {
+      flagBlock(block, thread);
+      block.classList.add("vr-figure");
+      var marker = block.querySelector(":scope > .vr-figure-marker");
+      if (!marker) {
+        marker = el("button", "vr-figure-marker");
+        marker.type = "button";
+        marker.innerHTML = icon("comments");
+        marker.setAttribute("data-threads", "");
+        marker.addEventListener("click", function (event) {
+          event.stopPropagation();
+          var ids = marker.getAttribute("data-threads").split(" ");
+          openThread(ids[(ids.indexOf(state.active) + 1) % ids.length]);
+        });
+        block.insertBefore(marker, block.firstChild);
+      }
+      var ids = (marker.getAttribute("data-threads") + " " + thread.id).trim().split(" ");
+      marker.setAttribute("data-threads", ids.join(" "));
+      if (thread.is_open) marker.classList.add("open");
+      var label = ids.length > 1 ? ids.length + " fils sur cette figure" : "Fil " + thread.id + " sur cette figure";
+      marker.setAttribute("aria-label", label);
+      marker.title = label;
+    }
+
     function clear() {
+      document.querySelectorAll(".vr-figure-marker").forEach(function (marker) { marker.remove(); });
+      document.querySelectorAll(".vr-figure").forEach(function (block) { block.classList.remove("vr-figure"); });
       document.querySelectorAll("mark." + MARK).forEach(function (mark) {
         var parent = mark.parentNode;
         while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
@@ -1227,6 +1318,11 @@
         node.classList.toggle("active", on);
         if (on && !first) first = node;
       });
+      document.querySelectorAll(".vr-figure-marker").forEach(function (marker) {
+        var on = Boolean(id) && marker.getAttribute("data-threads").split(" ").indexOf(id) >= 0;
+        marker.classList.toggle("active", on);
+        if (on) marker.closest(".vr-commented").classList.add("active");
+      });
       if (scroll && first) first.scrollIntoView({ block: "center", behavior: "smooth" });
     }
 
@@ -1235,7 +1331,7 @@
        a selection, nor one on a link or a control. */
     document.addEventListener("click", function (event) {
       var target = event.target.nodeType === 1 ? event.target : event.target.parentElement;
-      if (!target || !target.closest("main") || target.closest("a, button, input, textarea, summary")) return;
+      if (!target || !target.closest("main") || target.closest(FIGURE_SURFACE)) return;
       if (!collapsedSelection()) return;
       var node = target.closest("mark." + MARK + ", ." + BLOCK);
       if (node) openThread(node.getAttribute("data-thread"));
