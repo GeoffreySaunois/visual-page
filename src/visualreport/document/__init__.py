@@ -5,7 +5,7 @@ from .composition import compose, wrap_markdown_div
 from .converter import build_converter
 from .frontmatter import ReportMeta, SourceError, parse_source, read_source, slugify
 from .images import carry_over_images, inline_local_images
-from .lints import literal_list_markers, orphaned_nested_blocks
+from .lints import literal_fence_markers, literal_list_markers, orphaned_nested_blocks
 from .page import PageContent, heading_anchor, render_page
 
 __all__ = [
@@ -21,6 +21,7 @@ __all__ = [
     "compose",
     "heading_anchor",
     "inline_local_images",
+    "literal_fence_markers",
     "literal_list_markers",
     "orphaned_nested_blocks",
     "nearest_heading",

@@ -11,7 +11,9 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def exchange(origin: str, token: str, path: str, payload: dict, method: str) -> dict:
+def exchange(
+    origin: str, token: str, path: str, payload: dict | None, method: str
+) -> dict:
     parsed = urlsplit(origin)
     if (
         parsed.scheme != "https"
@@ -23,7 +25,7 @@ def exchange(origin: str, token: str, path: str, payload: dict, method: str) -> 
         raise ValueError("An explicit HTTPS origin without path is required")
     request = Request(
         origin + path,
-        data=json.dumps(payload).encode(),
+        data=None if payload is None else json.dumps(payload).encode(),
         headers={
             "Content-Type": "application/json",
             "User-Agent": "visual-report/0.2",

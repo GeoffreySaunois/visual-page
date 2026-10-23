@@ -51,7 +51,7 @@ def collect(archive: Archive) -> list[Entry]:
     entries = [
         read_entry(archive, path)
         for path in sorted(archive.root.glob("*.html"))
-        if path.name != "index.html"
+        if path.name != "index.html" and not path.is_symlink()
     ]
     return sorted(entries, key=lambda entry: entry.sort_key, reverse=True)
 

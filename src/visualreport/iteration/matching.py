@@ -2,7 +2,9 @@
 
 Both cross-version features build on this: the iteration diff needs to know
 which block changed, and a comment anchor needs to find where its block moved
-to after a rewrite.
+to after a rewrite. The diff pairs blocks by a bounded edit distance (`edits`),
+so a huge block never stalls a render; re-homing a comment scores candidates
+with difflib's ratio, against `MODIFIED_RATIO`.
 """
 
 from __future__ import annotations
@@ -12,10 +14,25 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from ..document import Block, normalize
+from .edits import edit_distance
 
-# A `replace` pair whose normalized similarity reaches this is one modified
-# block; below it, the pair is a removal plus an unrelated addition.
+# A comment's block re-homes onto the closest block whose difflib ratio reaches
+# this; below it, the block is taken as gone.
 MODIFIED_RATIO = 0.5
+
+# A `replace` pair is one modified block when its similarity, (T - D) / T for
+# T characters on both sides and D the insertions plus deletions between them
+# (so twice their longest common subsequence over T), reaches this; below it,
+# the pair is a removal plus an unrelated addition. Unrelated prose scores up
+# to about 0.5 (a common subsequence of frequent letters and spaces), while a
+# reworded paragraph scores 0.8 to 0.9 and one that gains a sentence as long
+# as itself about 0.65.
+MODIFIED_SHARE = 0.55
+
+# The most edits a modified pair may differ by, whatever its length. Measuring
+# a pair costs O(T · D) (``edits``), so it stops at this many and the pair is a
+# removal plus an addition: a block rewritten past it reads as new anyway.
+EDIT_CAP = 500
 
 
 class ChangeKind(StrEnum):
@@ -82,7 +99,7 @@ def resolve_replacement(
     paired = min(len(old_run), len(new_run))
     for offset in range(paired):
         old_block, new_block = old_run[offset], new_run[offset]
-        if similarity(old_block.normalized, new_block.normalized) >= MODIFIED_RATIO:
+        if similar(old_block.normalized, new_block.normalized):
             matches[new_start + offset] = BlockMatch(ChangeKind.MODIFIED, old_block)
         else:
             removed.append(old_block)
@@ -90,6 +107,15 @@ def resolve_replacement(
     for offset in range(paired, len(new_run)):
         matches[new_start + offset] = BlockMatch(ChangeKind.ADDED, None)
     removed.extend(old_run[paired:])
+
+
+def similar(left: str, right: str) -> bool:
+    """Whether two blocks' texts are close enough for one to be a modification
+    of the other: their similarity reaches ``MODIFIED_SHARE`` within
+    ``EDIT_CAP`` edits."""
+    total = len(left) + len(right)
+    budget = min(int(total * (1 - MODIFIED_SHARE)), EDIT_CAP)
+    return edit_distance(left, right, budget) is not None
 
 
 def similarity(left: str, right: str) -> float:

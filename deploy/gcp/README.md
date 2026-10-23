@@ -5,7 +5,8 @@ transactional metadata, permissions and comments in Firestore. It is separate fr
 the local archive server. No existing archive is automatically copied to GCP.
 
 Cloudflare Access identifies users through email OTP. Anyone can authenticate, but
-the application grants no report access until its owner shares that report. The
+the application grants no report access until its owner shares that report, with
+one email or with every verified email. The
 application validates the Access JWT signature, fixed issuer, audience and expiry
 on requests arriving through Cloudflare and directly at the Cloud Run URL.
 No SMTP or Resend is required. Terraform owns authentication infrastructure;

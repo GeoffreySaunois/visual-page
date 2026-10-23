@@ -10,7 +10,7 @@ resource "cloudflare_zero_trust_access_application" "reports" {
   name                      = "Artefacts"
   domain                    = "artefacts.saunois.xyz"
   type                      = "self_hosted"
-  session_duration          = "24h"
+  session_duration          = "720h"
   allowed_idps              = [cloudflare_zero_trust_access_identity_provider.email.id]
   auto_redirect_to_identity = true
   policies = [{

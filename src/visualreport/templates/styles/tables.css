@@ -1,0 +1,100 @@
+/* ----------------------------------------------- Interactive data tables --- */
+/* The figure holds the measure; it widens symmetrically when dragged, so a wide
+   table stays centred on the prose. The table itself scrolls inside it. */
+figure.data-table {
+  position: relative; margin: 20px 0; max-width: none;
+  border-radius: var(--radius); box-shadow: var(--shadow); background: var(--surface);
+}
+.tablewrap { overflow-x: auto; }
+figure.data-table .tablewrap {
+  overflow-x: auto; border-radius: var(--radius);
+}
+figure.data-table table {
+  table-layout: fixed; margin: 0; box-shadow: none; border-radius: 0; overflow: visible;
+}
+/* A header sorts on click and moves on drag, so it reads as a control. */
+figure.data-table th {
+  position: relative; vertical-align: top; line-height: 1.35;
+  overflow-wrap: normal; hyphens: none; cursor: pointer; user-select: none;
+}
+figure.data-table td { line-height: 1.5; }
+/* A header holds at most two lines; the rest ellipsizes and shows on hover. */
+figure.data-table th::after { content: none; }
+.th-inner { display: flex; align-items: flex-start; gap: 4px; }
+th.num .th-inner { justify-content: flex-end; }
+.th-label {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden; min-width: 0;
+}
+th.sorted-asc .th-inner::after, th.sorted-desc .th-inner::after { font-size: 10px; line-height: 1.35rem; flex: none; }
+th.sorted-asc .th-inner::after { content: "▲"; }
+th.sorted-desc .th-inner::after { content: "▼"; }
+figure.data-table th:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+figure.data-table th:hover { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+/* Numbers right-aligned on a shared tabular grid read as a column, not a list. */
+figure.data-table td { font-variant-numeric: tabular-nums; }
+figure.data-table .num { text-align: right; }
+
+/* Hidden columns: a soft shadow on the edge they hide behind, as if the rows
+   slid under the frame. A shadow darkens in both themes. */
+figure.data-table::before, figure.data-table::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 14px; z-index: 2;
+  pointer-events: none; opacity: 0; transition: opacity .15s;
+}
+figure.data-table::before {
+  left: 0; border-radius: var(--radius) 0 0 var(--radius);
+  background: linear-gradient(to right, color-mix(in srgb, black 22%, transparent), transparent);
+}
+figure.data-table::after {
+  right: 0; border-radius: 0 var(--radius) var(--radius) 0;
+  background: linear-gradient(to left, color-mix(in srgb, black 22%, transparent), transparent);
+}
+figure.data-table.more-left::before, figure.data-table.more-right::after { opacity: 1; }
+
+/* Column resize grip: the right edge of each header. */
+.col-grip {
+  position: absolute; top: 0; right: -4px; bottom: 0; width: 9px; z-index: 1;
+  cursor: col-resize; touch-action: none;
+}
+.col-grip::after {
+  content: ""; position: absolute; top: 25%; bottom: 25%; left: 4px; width: 1px;
+  background: color-mix(in srgb, var(--text-soft) 45%, var(--border)); opacity: 0; transition: opacity .12s;
+}
+figure.data-table thead:hover .col-grip::after { opacity: 1; }
+.col-grip:hover::after { background: var(--accent); width: 2px; }
+th:last-child > .col-grip { right: 0; }
+
+/* Table width grips: both outer edges, shown on hover. */
+.table-edge {
+  position: absolute; top: 0; bottom: 0; width: 10px; cursor: ew-resize; touch-action: none;
+  display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s;
+}
+.table-edge-left { left: -10px; }
+.table-edge-right { right: -10px; }
+.table-edge::after {
+  content: ""; width: 3px; height: 24px; border-radius: 3px; background: color-mix(in srgb, var(--text-soft) 45%, var(--border)); opacity: .7;
+}
+.table-edge:hover::after { background: var(--text-soft); opacity: 1; }
+figure.data-table:hover .table-edge, body.table-dragging .table-edge { opacity: 1; }
+
+/* Column reorder feedback. */
+figure.data-table.reordering th { cursor: grabbing; }
+th.moving { opacity: .55; }
+th.drop-before { box-shadow: inset 3px 0 0 var(--accent); }
+th.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
+body.table-dragging { user-select: none; cursor: inherit; }
+
+/* Reset: shown once the layout differs from the authored one, in the table's
+   corner with the figure actions (figure-actions.css styles it there). */
+.table-reset[hidden] { display: none; }
+
+/* On paper a table takes the page width and sizes its columns to their
+   content again, whatever width the reader gave it on screen. */
+@media print {
+  figure.data-table { width: auto !important; margin-left: 0 !important; box-shadow: none; }
+  figure.data-table .tablewrap { overflow: visible; }
+  figure.data-table table { width: 100% !important; table-layout: auto; }
+  figure.data-table col { width: auto !important; }
+  figure.data-table::before, figure.data-table::after { content: none; }
+  .col-grip, .table-edge, .table-reset { display: none; }
+}

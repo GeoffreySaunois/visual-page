@@ -2,19 +2,25 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..comments import report_view
+from ..comments import AuthorKind, report_view
 from ..server.api import AnchorRequest
 from .comments import CommentAction
+from .grants import EVERYONE, Grantee, Role
 from .identity import AccessIdentity
 from .publication import Publication, publish
-from .reports import Role
 from .service import ReportService
 
 
-class Message(BaseModel):
+class Actor(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    # Public API: browsers omit this field; agent attribution requires ownership.
+    actor: AuthorKind = AuthorKind.HUMAN
+
+
+class Message(Actor):
     model_config = ConfigDict(extra="forbid")
     body: str = Field(min_length=1, max_length=20_000)
 
@@ -24,17 +30,33 @@ class NewThread(Message):
 
 
 class Share(BaseModel):
+    """A grant to exactly one grantee: an `email`, or `everyone` verified."""
+
     model_config = ConfigDict(extra="forbid")
-    email: str
+    # Public API: a request names its grantee with whichever of the two it uses.
+    email: str | None = None
+    everyone: bool = False
     role: Role | None
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, value: str) -> str:
+    def validate_email(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         value = value.strip().lower()
         if "@" not in value or len(value) > 254 or any(c.isspace() for c in value):
             raise ValueError("Expected an email address")
         return value
+
+    @model_validator(mode="after")
+    def one_grantee(self):
+        if (self.email is None) == (not self.everyone):
+            raise ValueError("Expected exactly one of email or everyone")
+        return self
+
+    @property
+    def grantee(self) -> Grantee:
+        return EVERYONE if self.everyone else self.email
 
 
 def router(service: ReportService, identity: AccessIdentity) -> APIRouter:
@@ -51,12 +73,7 @@ def router(service: ReportService, identity: AccessIdentity) -> APIRouter:
 
     @routes.get("/documents")
     def documents(email: User):
-        return {
-            "documents": [
-                r.summary()
-                for r in service.reports.visible(email, email in service.owners)
-            ]
-        }
+        return {"documents": [r.summary() for r in service.visible(email)]}
 
     @routes.post("/publish")
     def publication(body: Publication, email: User):
@@ -66,14 +83,27 @@ def router(service: ReportService, identity: AccessIdentity) -> APIRouter:
 
     @routes.put("/documents/{document_id}/shares")
     def share(document_id: str, body: Share, email: User):
-        report = service.share(document_id, email, body.email, body.role)
-        return {"grants": report.grants}
+        report = service.share(document_id, email, body.grantee, body.role)
+        return {"grants": report.sharing.model_dump(mode="json")}
 
     @routes.get("/documents/{document_id}/shares")
     def shares(document_id: str, email: User):
         report = service.read(document_id, email)
-        report.authorize_owner(email, service.owners)
-        return {"owner": report.owner, "grants": report.grants}
+        report.authorize_owner(email, service.access())
+        return {"owner": report.owner, "grants": report.sharing.model_dump(mode="json")}
+
+    @routes.put("/folders/{folder:path}/shares")
+    def share_folder(folder: str, body: Share, email: User):
+        grants = service.share_folder(email, folder, body.grantee, body.role)
+        return {"grants": grants.model_dump(mode="json")}
+
+    @routes.get("/shares")
+    def all_shares(email: User):
+        by_folder, by_document = service.shares(email)
+        return {
+            "folders": {k: g.model_dump(mode="json") for k, g in by_folder.items()},
+            "documents": {k: g.model_dump(mode="json") for k, g in by_document.items()},
+        }
 
     @routes.get("/documents/{document_id}/threads")
     def threads(document_id: str, email: User):
@@ -88,6 +118,7 @@ def router(service: ReportService, identity: AccessIdentity) -> APIRouter:
             None,
             body.body,
             body.anchor.model_dump() if body.anchor else None,
+            body.actor,
         )
         report = service.comment(document_id, email, action)
         return report_view(report.threads, report.revision)
@@ -95,7 +126,9 @@ def router(service: ReportService, identity: AccessIdentity) -> APIRouter:
     @routes.post("/documents/{document_id}/threads/{thread_id}/comments")
     def reply(document_id: str, thread_id: str, body: Message, email: User):
         report = service.comment(
-            document_id, email, CommentAction("reply", thread_id, None, body.body, None)
+            document_id,
+            email,
+            CommentAction("reply", thread_id, None, body.body, None, body.actor),
         )
         return report_view(report.threads, report.revision)
 
@@ -106,7 +139,7 @@ def router(service: ReportService, identity: AccessIdentity) -> APIRouter:
         report = service.comment(
             document_id,
             email,
-            CommentAction("edit", thread_id, comment_id, body.body, None),
+            CommentAction("edit", thread_id, comment_id, body.body, None, body.actor),
         )
         return report_view(report.threads, report.revision)
 
@@ -115,7 +148,9 @@ def router(service: ReportService, identity: AccessIdentity) -> APIRouter:
         report = service.comment(
             document_id,
             email,
-            CommentAction("delete_comment", thread_id, comment_id, None, None),
+            CommentAction(
+                "delete_comment", thread_id, comment_id, None, None, AuthorKind.HUMAN
+            ),
         )
         return report_view(report.threads, report.revision)
 
@@ -124,16 +159,33 @@ def router(service: ReportService, identity: AccessIdentity) -> APIRouter:
         report = service.comment(
             document_id,
             email,
-            CommentAction("delete_thread", thread_id, None, None, None),
+            CommentAction(
+                "delete_thread", thread_id, None, None, None, AuthorKind.HUMAN
+            ),
         )
         return report_view(report.threads, report.revision)
 
     @routes.post("/documents/{document_id}/threads/{thread_id}/{operation}")
-    def lifecycle(document_id: str, thread_id: str, operation: str, email: User):
+    def lifecycle(
+        document_id: str,
+        thread_id: str,
+        operation: str,
+        email: User,
+        body: Annotated[Actor | None, Body()] = None,
+    ):
         if operation not in {"resolve", "reopen"}:
             raise HTTPException(404, "Unknown operation")
         report = service.comment(
-            document_id, email, CommentAction(operation, thread_id, None, None, None)
+            document_id,
+            email,
+            CommentAction(
+                operation,
+                thread_id,
+                None,
+                None,
+                None,
+                body.actor if body else AuthorKind.HUMAN,
+            ),
         )
         return report_view(report.threads, report.revision)
 

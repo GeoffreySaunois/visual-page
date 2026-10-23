@@ -48,8 +48,8 @@ the body of the reasoning.
    Code highlighting happens at build time (Pygments), so it costs no library. You
    never write a `<script src=…>` yourself.
 3. **Use the charte.** It lives in `templates/styles/*.css` and is inlined at build
-   time: design tokens, dark mode, the light/dark toggle, the sortable tables, the
-   comment rail. Write content, never visual identity — no `<style>` block and no
+   time: design tokens, Lab's themes and dark palettes, the reader frame, the
+   interactive tables, the comments panel. Write content, never visual identity — no `<style>` block and no
    inline `style=` in a source, except in the rare raw-HTML escape hatch.
 4. **Adaptive interactivity** (the user's default):
    - Time series, trajectories, "X over runs/iterations" → **interactive line/bar chart** (Chart.js).
@@ -92,8 +92,9 @@ the body of the reasoning.
 
 **Author markdown, not HTML.** The page is written as a `.md` source file (front matter
 + the dialect below) and compiled by `visual-report render` into a self-contained HTML
-page — sidebar table of contents with scroll-spy, reading-progress bar, light/dark
-theme toggle, charte boxes, build-time Pygments highlighting, and pinned CDN tags
+page — Gym Lab's reader frame (a collapsible sidebar with a numbered table of
+contents that follows the reading, a top bar of icon buttons, Lab's themes: system /
+light / dark × navy / violet / grey palettes), charte boxes, build-time Pygments highlighting, and pinned CDN tags
 injected **only** for the features the page actually uses (MathJax / Chart.js /
 Mermaid). Writing markdown keeps the register in "document" mode (dense, developed
 prose) instead of "landing page" mode, and removes the lossy spec-to-sub-agent hop:
@@ -124,11 +125,13 @@ with the explicit instruction that every paragraph is carried word-for-word.
      |---|---|
      | `swaap` | Swaap work that fits none of the folders below |
      | `swaap/gym` | the gym platform: projects, runs, thinker, reviewer, dashboard, LLM costs of runs |
+     | `swaap/gym/lab` | Gym Lab: vision produit, architecture, implémentation et recette |
      | `swaap/trading` | searcher, HL strats, arb, rfq, backtester, prod incidents and digests |
      | `swaap/infra` | CI, cluster, data platform, access, service quotas |
      | `swaap/research` | models, providers, papers, literature reviews |
      | `personal` | personal work that fits none of the folders below |
      | `personal/azul` | the Azul product: plans, PR recaps, UI, QA, demos, pitch |
+     | `personal/medical-copilot` | the Medical Copilot product: vision, plans, PR recaps, UI |
      | `personal/travel` | roadbooks, lodging, activities |
      | `personal/admin` | mail, reminders, paperwork |
      | `personal/markets` | Polymarket, quant analyses outside Swaap |
@@ -150,13 +153,21 @@ with the explicit instruction that every paragraph is carried word-for-word.
      body of the reasoning.
    - **Charts**: fenced ` ```chart title="…" caption="…" height="320" ` block whose
      body is a strict-JSON Chart.js config. Datasets without explicit colors get the
-     charte palette automatically; charts re-render on theme toggle.
+     charte palette automatically; charts re-render when the theme or palette changes.
    - **Diagrams**: fenced ` ```mermaid caption="…" ` block (theme-aware, re-renders
-     on toggle).
+     when the theme or palette changes).
    - **KPI band**: fenced ` ```kpi ` block with a YAML list of `{value, label, note?}`.
    - **Math**: `\(inline\)` and `$$display$$` — never bare `$` (dollar amounts stay
      literal; MathJax only processes the wrapped spans).
-   - **Tables**: markdown tables — rendered charte-styled and click-to-sort.
+   - **Tables**: markdown tables — charte-styled and interactive: columns sized to
+     their content, sort (click a header), resize, reorder (drag a header), widen into
+     the margins, reset; a reader's layout is remembered in their browser. Tables
+     with merged cells stay static.
+   - **Figures**: tables, diagrams, charts and images carry two actions in their
+     corner — Commenter and Afficher en grand (a lightbox; a filmstrip browses on in
+     it). Commenter opens a thread on the whole block: its quote is empty, the
+     figure gets a rule and an outline, and a marker in its left gutter reaches its
+     threads afterwards. Code blocks carry a Copy action.
    - **File maps**: fenced ` ```filetree ` block — YAML list of `{path, flag:
      added|modified|removed|renamed, note?}`, rendered as flagged A/M/D/R rows.
    - **Diffs**: fenced ` ```diff title="…" mode="unified|split" ` block. Unified
@@ -214,11 +225,10 @@ with the explicit instruction that every paragraph is carried word-for-word.
     Output is `~/.claude/html-reports/<kind>-<slug>-<date>.html`; the source is
     archived so the page can be re-rendered later; the gallery is rebuilt
     (`--no-index` to skip). Flags:
-    - `--serve` starts the local server *and the tunnel* if needed, opens the page
-      over http and prints its two addresses — **the only mode where Geoffrey can
-      comment**, so prefer it always. The public one (`https://…`, gated by
-      Cloudflare Access) is what he opens on his phone; the loopback one is the
-      Mac's, and the only one printed when the machine has no tunnel configured.
+    - `--serve` publishes the commentable page to **https://artefacts.saunois.xyz**
+      and prints its HTTPS URL. It starts no local server or reverse tunnel.
+      Authenticate with `cloudflared access login https://artefacts.saunois.xyz`
+      when the cached Access session expires. `--local` explicitly selects a local preview.
     - `--open` just opens the file; the comment panel is then read-only.
     - `--kind {report|plan|recap|uidiff}` picks the page family: it decides the
       filename **and the document identity**, so it is what carries a page's
@@ -250,7 +260,6 @@ src/<kind>-<slug>-<date>.md    the sources, kept for re-renders
 src/.last-rendered/<doc>.md    the version the next iteration diff compares to
 comments/<doc>.json            the comment threads
 logs/server.log  .server.json  the local server
-logs/tunnel.log  .tunnel.json  the tunnel publishing the archive
 ```
 
 A **document** is `<kind>-<slug>` (e.g. `report-gym-costs`) — the identity that is
@@ -269,22 +278,18 @@ returns to the directory. Sorting reorders the cards inside the current director
 The folder comes from the page's `report-folder` meta tag, which the front matter
 `folder` feeds. A page carrying no such tag — rendered before folders existed — sits
 in an *À classer* tile at the root until it is filed: add `folder:` to its archived
-source under `src/` and `visual-report refresh <document>`; a page whose source is
+source under `src/` and `visual-report refresh <document> --serve`; a page whose source is
 not archived gets the meta tag written straight into its HTML.
 
-**Reaching it.** `visual-report serve` brings up two processes: the loopback server,
-and a cloudflared tunnel that publishes the same archive at the hostname read from
-`~/.cloudflared/config.yml`, behind Cloudflare Access (e-mail OTP). `status` reports
-both plus the public address, `stop` ends both. The tunnel is opt-in by the presence
-of that config: without it — or without `cloudflared` — the engine serves locally
-and says nothing about a tunnel. A tunnel that fails to start is a warning and never
-stops `serve`. Diagnostics: `logs/tunnel.log` in the archive; a `cloudflared` started
-outside the engine is invisible to `status` and holds the metrics port, so
-`pkill -f "cloudflared tunnel run"` then `visual-report stop && visual-report serve`.
-An unauthenticated request to the public hostname answers **302** to the Access login
-— that is the guard working, not a breakage. The pair comes back at login through a
-launchd agent, so a reboot does not leave the phone on a 502. Setting any of this up
-on another machine, and what breaks it: `docs/remote-access.md`.
+**Reaching it.** The gallery is **https://artefacts.saunois.xyz**. Cloudflare Access
+verifies email ownership; the hosted backend enforces permissions per report.
+To let someone else in, `visual-report share <email> | --everyone --document <id> | --folder <path>
+--role reader|commenter|revoke` (a folder covers its subfolders and future pages;
+`--everyone` opens it to every email Cloudflare Access verified);
+`visual-report shares` lists every grant. See `docs/remote-access.md`.
+`render --serve` publishes remotely, and comment CLI commands read/write the hosted
+store by default. No local daemon, login agent or reverse tunnel is required.
+`visual-report serve` is an explicit local preview only. See `docs/remote-access.md`.
 
 ## Printing a page
 
@@ -292,7 +297,7 @@ Every page also exists on paper. One print stylesheet (`templates/styles/print.c
 decides what that looks like, and the three ways of getting a PDF all go through
 it, so they produce the same document:
 
-- **The `PDF` button** in the sidebar's control strip — it opens the browser's
+- **The PDF button** (download icon) in the top bar's toolbar — it opens the browser's
   print dialog, where *Enregistrer au format PDF* does the rest. It works on a
   served page and on an archived file opened by double-click alike: no server,
   nothing installed.
@@ -315,8 +320,8 @@ and any other renderer would print them empty.
 
 **What paper does to a page.** The stylesheet forces the light palette whatever
 theme the reader is in, drops everything that exists only to be clicked (the
-sidebar, the control strip, the comment rail and its bubble, the filmstrip's
-arrows), and keeps the small blocks whole across a page break. What a gesture
+sidebar, the top bar, the comments panel and the selection action, the figure
+actions, the filmstrip's arrows), and keeps the small blocks whole across a page break. What a gesture
 would have revealed is opened for the print and put back after: a collapsed
 `???` annex is expanded, every tab panel is stacked under its own tab's title,
 every filmstrip slide is printed in sequence. A screenshot taller than the text
@@ -357,14 +362,17 @@ review, a recap is re-rendered after new commits.
   `▲ N changements` header and one line per change, each with an inline badge
   (`modifié` / `nouveau` / `retiré`) and a link to the nearest heading of the
   changed block.
-- **In-page controls** (top of the sidebar):
-  - **Diff on/off** toggle — *on* reviews the highlighted changes + changelog,
-    *off* shows the clean final document. Persisted in `localStorage` (`vr-diff`),
-    default *on*. The button only appears when a diff was computed.
-  - **3-state theme** toggle — système (◐) → clair (☀) → sombre (☾), cycling and
-    persisted (`vr-theme`).
-  - **← Index** — back to the gallery. Always present, even with no diff.
-  - **Commentaires N** — opens the comment rail (see below); always present.
+- **In-page controls** (the top bar's toolbar, icon buttons labelled by tooltip):
+  - **Diff** toggle (file-diff icon) — pressed reviews the highlighted changes +
+    changelog, released shows the clean final document. Persisted in
+    `localStorage` (`vr-diff`), default *on*. Only present when a diff was computed.
+  - **Commentaires** (speech-bubble icon, open-thread count as a badge, shortcut `C`) —
+    opens the comment panel (see below); always present.
+  - **PDF** (download icon) and **Apparence** — the appearance menu: thème
+    Système / Clair / Sombre and palette sombre Marine / Violet / Gris, persisted
+    per viewer (`vr-theme`, `vr-palette`).
+  - **Galerie** — back to the gallery, from the sidebar's top row (or the rail
+    when the sidebar is collapsed) and from the breadcrumb.
 
 Matching is `difflib` over the source blocks (a pragmatic top-level splitter that
 keeps fences and callouts whole); a changed block pairs as *modified* when it stays
@@ -374,19 +382,21 @@ recognizably similar, otherwise it counts as a removal plus an addition.
 
 A page is a place to work, not a deliverable to admire. Geoffrey highlights a
 passage and comments on it; you answer in the thread, fix the source, re-render.
-Comments live in `~/.claude/html-reports/comments/<document>.json` — outside any
-repo, and independent of the pages, so they survive every re-render. Every genre
+Hosted comments live in Firestore, independently of the pages, and survive every
+publication. Local `comments/<document>.json` files are migration backups or preview data. Every genre
 gets this: a plan is approved through its threads, a recap is challenged in them.
 
-**In the page.** Select any text → *Commenter* → the thread opens in the right rail
-with the passage quoted and highlighted in the document. A thread holds an ordered
+**In the page.** Select any text → *Commenter* → the thread opens in the Comments
+panel on the right (on a wide screen it pushes the reading column aside, and its
+left edge resizes it) with the passage quoted and highlighted in the document. A
+figure's own *Commenter* action opens a thread on the whole block instead, with an
+empty quote. A thread holds an ordered
 exchange, is replied to and resolved (hidden from the default view, reopenable);
 each message carries a **⋮** menu to *rewrite* it (it is then marked `modifié`) or
 *delete* it — deleting the last message of a thread deletes the thread. Filters:
-*Ouverts* / *Résolus* / *Tous*. **Writing requires the served page** — always hand
-over a page with `--serve` if you expect feedback, over either of its addresses:
-the public one goes through the tunnel to the same server, so commenting works
-identically from the phone. A page opened as a plain file still shows every thread,
+*Ouverts* / *Résolus*. **Writing requires the served page** — always hand
+over the hosted page published with `--serve` if you expect feedback. It is
+commentable on both phone and desktop. A page opened as a plain file still shows every thread,
 read-only.
 
 **From the terminal** (`bin/visual-report`, `<document>` is `<kind>-<slug>`):
@@ -428,27 +438,28 @@ quoted words were rewritten is `dérivé` (its block is flagged in the margin, a
 the digest shows the *current* wording); a thread whose block disappeared is
 `orphelin`. Nothing is ever dropped for having lost its anchor.
 
-**Checking the phone rendering, headlessly.** The panel is a bottom sheet under
-720px, and that layout is verified locally through the **Playwright MCP** — no
-dependency is added to the package, the tooling lives in the session. Drive a
-*served* page (`visual-report status` prints the loopback address):
+**Checking the phone rendering, headlessly.** Under 700px the panel takes the whole
+visible screen and the sidebar becomes a drawer opened from the top bar's menu
+button. That layout is verified locally through the **headless Playwright MCP** —
+no dependency is added to the package, the tooling lives in the session. Drive a
+*hosted* page using an authenticated browser session:
 
 1. `browser_resize` **390×844**, then `browser_navigate` to
-   `http://127.0.0.1:<port>/<page>.html`. After a re-render, append a
+   the HTTPS page URL printed by `render --serve`. After a re-render, append a
    cache-buster (`?v=2`) — Chrome otherwise replays the previous file and you
    review the old script. Re-`browser_resize` after any navigation hiccup: a
    reset viewport silently puts you back on the desktop layout.
-2. The sidebar is off-screen on a phone, so the panel opens in two taps: click
-   `.menu-btn`, then `#comments-toggle`.
+2. The panel opens from the top bar on a phone too: click `#comments-toggle`.
 3. What to look at — a thread is opened by a **selection only**: select a passage
-   and dispatch a `mouseup`, the `Commenter` bubble shows, and the draft card
+   and dispatch a `mouseup`, the floating `Commenter` action shows, and the draft card
    carries the quoted passage. Send it, reload, and the thread is still there with
    its anchor and its `mark.vr-anchor` in the text. The panel foot holds the
    offline notice alone and is `hidden` while the server answers, so the sheet
    ends flush on its last card. Nothing overflows sideways:
    `document.documentElement.scrollWidth === clientWidth`.
 4. `browser_resize` **1600×900** confirms the desktop is untouched — the panel is
-   a full-height rail on the right edge, the sidebar is visible.
+   a column docked under the top bar on the right, the sidebar is visible (and
+   collapses to a rail of icons from its top row).
 5. Delete whatever thread the check created (`visual-report delete <document> tN`).
 
 **What this cannot see.** A driven Chrome/WebKit has no dynamic browser toolbar,
@@ -462,18 +473,11 @@ the real iPhone or not at all.
 After writing, give the user **one line**: what the page covers + the URL of the
 page + the gallery path. No re-narration of the content — the page *is* the content
 now. When the page was rendered as an iteration diff, add that it shows the changes
-since the previous version (toggle in the sidebar).
+since the previous version (the Diff button in the top bar).
 
-**Which URL.** A served page has two, both printed by `render --serve`, and the
-rule is to hand over the one he can open anywhere:
-
-1. the **public** one (`https://…/<page>.html`) — the tunnel's, readable and
-   commentable from his phone as well as the Mac. Give this one, alone;
-2. the **loopback** one (`http://127.0.0.1:…/<page>.html`) — cite it only when
-   `render --serve` printed no public URL, which means no tunnel is up.
-
-Never hand over the file path for a served page: it is the one address that cannot
-be commented on.
+**Which URL.** Share the HTTPS URL printed by `render --serve`, plus the hosted
+gallery https://artefacts.saunois.xyz. Never substitute a local file or loopback
+address for a published page. Local previews are for explicitly requested debugging.
 
 When you answered comments, say which threads you replied to — they all stay open
 for Geoffrey to resolve — and nothing more.
@@ -492,10 +496,6 @@ comment stores and the running server's state for a cosmetic gain.
 
 ## Possible evolutions
 
-- **Sharing a page with someone else.** The public URL is the Mac's own archive
-  behind Cloudflare Access, so it opens for Geoffrey and for nobody else. Handing a
-  page to a third party would need a publish step (a static copy pushed somewhere,
-  or an Access policy per page); neither is built.
 - **Comment mentions of a chart or a table cell** — anchoring is block-level plus a
   text quote today, so a figure can only be commented as a whole.
 
@@ -506,7 +506,8 @@ comment stores and the running server's state for a cosmetic gain.
 - Dense by default: a reader who never opens the source document misses nothing of the
   argument. If a section only makes sense with the source open, it failed.
 - Looks intentional on first open: consistent spacing, the charte's accent color,
-  dark mode working via `prefers-color-scheme`.
+  light and dark themes (the system's by default) and the three dark palettes — which
+  dress the chrome only: the document keeps its navy canvas under every one.
 - Every number on the page is traceable to the source; never invent data to fill a chart.
 - Prints cleanly — see *Printing a page*: the template handles `@media print`, and
   `--pdf` (or the page's `PDF` button) turns it into a document to send or file.

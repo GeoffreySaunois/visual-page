@@ -16,14 +16,37 @@ from pathlib import Path
 
 from markdown.extensions.toc import slugify as toc_slugify
 
+from .. import folders
 from ..branding import favicon_link
 from .assets import PageAssets
 from .frontmatter import ReportMeta
 from .libraries import head_libraries
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates"
-STYLE_ORDER = ("charte.css", "blocks.css", "iteration.css", "comments.css", "print.css")
-SCRIPT_ORDER = ("page.js", "comments.js", "paste.js")
+STYLE_ORDER = (
+    "charte.css",
+    "blocks.css",
+    "tables.css",
+    "copy.css",
+    "lightbox.css",
+    "figure-actions.css",
+    "iteration.css",
+    "comments.css",
+    "print.css",
+)
+SCRIPT_ORDER = (
+    "appearance.js",
+    "tooltip.js",
+    "sidebar.js",
+    "contents.js",
+    "page.js",
+    "tables.js",
+    "copy.js",
+    "lightbox.js",
+    "figure-actions.js",
+    "comments.js",
+    "paste.js",
+)
 
 
 @dataclass(frozen=True)
@@ -32,9 +55,8 @@ class PageContent:
 
     document_id: str
     body: str
-    toc_tokens: list
     changelog: str
-    side_controls: str
+    toolbar: str
     comments_bootstrap: dict
     assets: PageAssets
 
@@ -52,10 +74,11 @@ def render_page(meta: ReportMeta, content: PageContent) -> str:
         # one — lets the status line show only the current session's reports.
         "SESSION": html.escape(os.environ.get("CLAUDE_CODE_SESSION_ID", "")),
         "FAVICON": favicon_link("page"),
-        "TOC": render_toc(content.toc_tokens),
+        "BREADCRUMB": breadcrumb(meta.folder),
+        "ICONS": (TEMPLATE_DIR / "icons" / "sprite.svg").read_text(encoding="utf-8"),
+        "TOOLBAR": content.toolbar,
         "CONTENT": content.body,
         "CHANGELOG": content.changelog,
-        "SIDE_CONTROLS": content.side_controls,
         "BOOTSTRAP": json.dumps(content.comments_bootstrap, ensure_ascii=False),
         "HEAD_LIBS": head_libraries(content.body, content.assets),
         "STYLES": concatenate(TEMPLATE_DIR / "styles", STYLE_ORDER),
@@ -86,20 +109,16 @@ def concatenate(directory: Path, names: tuple[str, ...]) -> str:
     return "\n".join((directory / name).read_text(encoding="utf-8") for name in names)
 
 
-def render_toc(toc_tokens: list) -> str:
-    """The sidebar table of contents, h2 with its h3 children."""
-
-    def label(name: str) -> str:
-        # The toc extension's `name` is already escaped; unescape then re-escape so
-        # an entity resolves to exactly one level of escaping rather than double.
-        return html.escape(html.unescape(str(name)))
-
-    lines = []
-    for h2 in toc_tokens:
-        lines.append(f'    <a href="#{h2["id"]}">{label(h2["name"])}</a>')
-        for h3 in h2.get("children", []):
-            lines.append(f'    <a class="toc-h3" href="#{h3["id"]}">{label(h3["name"])}</a>')
-    return "\n".join(lines)
+def breadcrumb(folder_path: str) -> str:
+    """The top bar's trail: the gallery, then each folder down to the page's own."""
+    crumbs = ['<a href="index.html">Galerie</a>']
+    segments = folder_path.split("/") if folder_path else []
+    for depth in range(1, len(segments) + 1):
+        folder = folders.folder("/".join(segments[:depth]))
+        label = folder.label if folder is not None else segments[depth - 1]
+        crumbs.append(f"<span>{html.escape(label)}</span>")
+    separator = '<svg class="icon crumb-separator" aria-hidden="true"><use href="#vr-i-chevron-right"></use></svg>'
+    return f'<nav class="reader-crumbs" aria-label="Emplacement">{separator.join(crumbs)}</nav>'
 
 
 def heading_anchor(heading: str) -> str:
