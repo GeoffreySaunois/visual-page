@@ -7,16 +7,16 @@
    Theming is driven by attributes on <html>, written before the first paint by
    the head script and kept current by appearance.js:
      data-theme           auto | light | dark       the reader's choice
-     data-palette         navy | violet | grey      which dark canvas
+     data-palette         navy | grey               which dark canvas
      data-resolved-theme  light | dark              what is on screen
-   Light is the same on every palette. A palette dresses the chrome only (the
-   sidebar, the top bar, the comments panel, the menus): the reading column
-   keeps the navy document canvas under every dark palette, as Lab's report
-   document does in its own frame. The dark blocks sit in `@media screen`, so
-   paper always prints the light tokens.
+   Light is the same on every palette. A dark palette paints the whole page —
+   chrome and reading column alike — so the canvas reads as one surface; the
+   reading column declares the palette's tokens again for itself so the
+   aliases derived from them resolve there too. The dark blocks sit in
+   `@media screen`, so paper always prints the light tokens.
 
    1.  Tokens — light
-   2.  Tokens — dark, navy / violet / grey
+   2.  Tokens — dark, navy / grey
    3.  Space, type, motion
    4.  Base
    5.  Shell grid
@@ -81,9 +81,7 @@
 /* 2. Tokens — dark ======================================================== */
 
 @media screen {
-  /* Navy: the default dark canvas; the page is the darkest step. It is also
-     the document's canvas under every palette, so the reading column
-     declares it again for itself. */
+  /* Navy: the default dark canvas; the page is the darkest step. */
   :root[data-resolved-theme="dark"],
   :root[data-resolved-theme="dark"] .reading {
     color-scheme: dark;
@@ -120,8 +118,7 @@
   }
 
   /* A token derived from another resolves where it is declared: the reading
-     column derives the charte's aliases again from its own navy values, and
-     paints its canvas, so no palette colour reaches the document. */
+     column derives the charte's aliases again from its own palette values. */
   :root[data-resolved-theme="dark"] .reading {
     --bg:         var(--page);
     --surface:    var(--panel);
@@ -135,37 +132,9 @@
     background: var(--bg);
   }
 
-  /* Violet: swaap.xyz's electric canvas, white as the only accent. */
-  :root[data-resolved-theme="dark"][data-palette="violet"] {
-    --page: #4A1DCB;
-    --panel: #5429CD;
-    --raised: #5E34D6;
-    --hover: #6A43DD;
-    --pressed: #7655D6;
-    --line: #7655D6;
-    --line-strong: #9C86F0;
-    --ink: #FFFFFF;
-    --muted: #C9BDF3;
-    --faint: color-mix(in srgb, #C9BDF3 92%, var(--page));
-    --accent-hover: #EDE8FB;
-    --accent-soft: #7655D6;
-    --accent-soft-hover: #7C5DDB;
-    --on-accent: #4A1DCB;
-    --ring: #C9BDF3;
-    --comment-mark-rule: color-mix(in srgb, var(--comment-mark) 80%, var(--panel));
-    --pop-surface: #5429CD;
-    --shadow-pop: 0 16px 40px -8px rgb(0 0 0 / .55), 0 2px 10px -2px rgb(0 0 0 / .4), inset 0 1px 0 rgb(255 255 255 / .08);
-    --shadow-raised: 0 8px 24px -12px rgb(0 0 0 / .5);
-    --scrim: rgb(0 0 0 / .5);
-
-    --accent:        #FFFFFF;
-    --accent-strong: #EDE8FB;
-    --blue:          #7DCCFF;
-    --text:          #EDE8FB;
-  }
-
   /* Grey: VS Code's Dark+ workbench, its link blue as the accent. */
-  :root[data-resolved-theme="dark"][data-palette="grey"] {
+  :root[data-resolved-theme="dark"][data-palette="grey"],
+  :root[data-resolved-theme="dark"][data-palette="grey"] .reading {
     --page: #1E1E1E;
     --panel: #232324;
     --raised: #252526;
@@ -558,7 +527,6 @@ main { width: 100%; max-width: var(--maxw); min-width: 0; }
   border: 1px solid var(--line-strong);
 }
 .swatch-navy { background: #06062A; }
-.swatch-violet { background: #4A1DCB; }
 .swatch-grey { background: #1E1E1E; }
 
 .vr-tooltip {

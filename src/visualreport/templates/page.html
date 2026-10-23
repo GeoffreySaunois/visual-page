@@ -22,7 +22,7 @@
   var mode = stored("vr-theme");
   if (mode !== "light" && mode !== "dark") mode = "auto";
   var palette = stored("vr-palette");
-  if (palette !== "violet" && palette !== "grey") palette = "navy";
+  if (palette !== "grey") palette = "navy";
   var dark = mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   root.setAttribute("data-theme", mode);
   root.setAttribute("data-palette", palette);

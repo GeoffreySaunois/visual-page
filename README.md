@@ -142,11 +142,10 @@ decorator, not rewriting the body again.
 - **Reading never needs the server.** Every page embeds its threads as JSON, so an
   archived file opened by double-click shows the whole exchange. Only *writing*
   needs the server.
-- **A palette dresses the chrome, never the document.** The dark palettes (navy,
-  violet, grey) recolour the sidebar, the top bar, the comments panel and the
-  menus; the reading column re-declares the navy tokens for itself (`charte.css`),
-  so every content block, the lightbox, and the colours charts and diagrams read
-  from a probe inside `main` stay on the document canvas, as in Lab.
+- **A dark palette paints the whole page.** Navy or grey recolours the chrome and
+  the reading column alike (`charte.css` declares the palette again on `.reading`),
+  so content blocks, the lightbox and the colours charts and diagrams read from a
+  probe inside `main` all sit on one uniform canvas.
 - **A new thread is written at its passage, a reply in the panel.** Selecting text
   (or a figure's Commenter) opens Gym Lab's floating composer right there
   (`scripts/selection-actions.js`); the Comments panel lists threads and answers

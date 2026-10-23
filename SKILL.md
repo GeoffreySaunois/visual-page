@@ -94,7 +94,7 @@ the body of the reasoning.
 + the dialect below) and compiled by `visual-report render` into a self-contained HTML
 page — Gym Lab's reader frame (a collapsible sidebar with a numbered table of
 contents that follows the reading, a top bar of icon buttons, Lab's themes: system /
-light / dark × navy / violet / grey palettes), charte boxes, build-time Pygments highlighting, and pinned CDN tags
+light / dark × navy / grey palettes), charte boxes, build-time Pygments highlighting, and pinned CDN tags
 injected **only** for the features the page actually uses (MathJax / Chart.js /
 Mermaid). Writing markdown keeps the register in "document" mode (dense, developed
 prose) instead of "landing page" mode, and removes the lossy spec-to-sub-agent hop:
@@ -378,7 +378,7 @@ review, a recap is re-rendered after new commits.
   - **Commentaires** (speech-bubble icon, open-thread count as a badge, shortcut `C`) —
     opens the comment panel (see below); always present.
   - **PDF** (download icon) and **Apparence** — the appearance menu: thème
-    Système / Clair / Sombre and palette sombre Marine / Violet / Gris, persisted
+    Système / Clair / Sombre and palette sombre Marine / Gris, persisted
     per viewer (`vr-theme`, `vr-palette`).
   - **Galerie** — back to the gallery root, from the sidebar's top row (or the rail
     when the sidebar is collapsed).
