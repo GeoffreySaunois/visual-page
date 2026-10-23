@@ -71,6 +71,11 @@ class Anchor(BaseModel):
     prefix: str
     suffix: str
 
+    @property
+    def covers_block(self) -> bool:
+        """A thread on a whole figure (table, diagram, chart, image) quotes no words."""
+        return not self.quote
+
 
 class Comment(BaseModel):
     model_config = ConfigDict(extra="forbid")
