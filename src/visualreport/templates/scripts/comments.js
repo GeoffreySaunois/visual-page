@@ -945,7 +945,9 @@
     function submit() {
       var body = ui.field.value.trim();
       if (state.pending || !body || !(state.passage || state.replyTo)) return;
-      var write = state.replyTo ? Api.reply(state.replyTo, body) : Api.openThread(state.passage.anchor, body);
+      var opening = !state.replyTo;
+      var known = threadIds();
+      var write = opening ? Api.openThread(state.passage.anchor, body) : Api.reply(state.replyTo, body);
       state.pending = true;
       controls();
       write.then(function () {
@@ -953,12 +955,26 @@
         ui.field.value = "";
         state.pending = false;
         disarm();
+        if (opening) showCreated(known);
       }).catch(function (error) {
         state.pending = false;
         controls();
         failed(error);
         focusField();
       });
+    }
+
+    function threadIds() {
+      return state.threads.map(function (thread) { return thread.id; });
+    }
+
+    /* The server answers with every thread, not the one it created: the new
+       thread is the one that was not there before. It becomes the active one,
+       its card scrolled into the panel and its passage or figure emphasised in
+       the document, so the writer sees where the comment landed. */
+    function showCreated(known) {
+      var created = state.threads.filter(function (thread) { return known.indexOf(thread.id) < 0; });
+      if (created.length === 1) openThread(created[0].id);
     }
 
     return { build: build, refresh: refresh, arm: arm, replyTo: replyTo, disarm: disarm };
