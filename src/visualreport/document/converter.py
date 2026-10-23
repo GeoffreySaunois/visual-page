@@ -6,6 +6,8 @@ import markdown
 
 from .assets import PageAssets
 from .fences import custom_fences
+from .lists import separate_lists_from_paragraphs
+from .math import ARITHMATEX_CONFIG, use_price_aware_math
 
 BASE_EXTENSIONS = (
     "tables",
@@ -30,12 +32,12 @@ def build_converter(assets: PageAssets, include_toc: bool) -> markdown.Markdown:
     extensions = list(BASE_EXTENSIONS)
     if include_toc:
         extensions.insert(0, "toc")
-    return markdown.Markdown(
+    converter = markdown.Markdown(
         extensions=extensions,
         extension_configs={
             "toc": {"toc_depth": "2-3", "permalink": "¶"},
             "pymdownx.highlight": {"css_class": "highlight", "guess_lang": False},
-            "pymdownx.arithmatex": {"generic": True},
+            "pymdownx.arithmatex": ARITHMATEX_CONFIG,
             "pymdownx.tabbed": {"alternate_style": True},
             "pymdownx.superfences": {
                 "custom_fences": custom_fences(
@@ -44,3 +46,6 @@ def build_converter(assets: PageAssets, include_toc: bool) -> markdown.Markdown:
             },
         },
     )
+    use_price_aware_math(converter)
+    separate_lists_from_paragraphs(converter)
+    return converter

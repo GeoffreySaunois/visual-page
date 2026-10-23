@@ -25,6 +25,7 @@ from .document import (
     build_converter,
     compose,
     inline_local_images,
+    literal_fence_markers,
     literal_list_markers,
     orphaned_nested_blocks,
     read_source,
@@ -103,6 +104,7 @@ def render(request: RenderRequest) -> RenderOutcome:
     html_body, warnings = inline_local_images(html_body, request.source.parent)
     warnings.extend(orphaned_nested_blocks(blocks))
     warnings.extend(literal_list_markers(html_body))
+    warnings.extend(literal_fence_markers(html_body))
 
     page = render_page(
         meta,

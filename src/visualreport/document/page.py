@@ -22,8 +22,10 @@ from .frontmatter import ReportMeta
 from .libraries import head_libraries
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates"
-STYLE_ORDER = ("charte.css", "blocks.css", "iteration.css", "comments.css", "print.css")
-SCRIPT_ORDER = ("page.js", "comments.js", "paste.js")
+STYLE_ORDER = ("charte.css", "blocks.css", "iteration.css", "comments.css", "print.css",
+               "tables.css", "copy.css", "lightbox.css", "figure-actions.css")
+SCRIPT_ORDER = ("page.js", "comments.js", "paste.js",
+                "tables.js", "copy.js", "lightbox.js", "figure-actions.js")
 
 
 @dataclass(frozen=True)

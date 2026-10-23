@@ -41,7 +41,10 @@ def render_unified(source: str, title: str) -> str:
         else:
             rows.append(unified_row("ctx", "", line))
     caption = f"<caption><code>{html.escape(title)}</code></caption>" if title else ""
-    return f'<table class="diff-table">{caption}<tbody>{"".join(rows)}</tbody></table>'
+    # A fixed-layout table reads column widths from its first row, which may be a
+    # full-width annotation: the colgroup pins the slim gutter regardless.
+    columns = '<colgroup><col class="gut"><col></colgroup>'
+    return f'<table class="diff-table">{caption}{columns}<tbody>{"".join(rows)}</tbody></table>'
 
 
 def unified_row(kind: str, sign: str, text: str) -> str:
