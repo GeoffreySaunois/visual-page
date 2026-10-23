@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{LANG}}" data-theme="auto">
+<html lang="{{LANG}}" data-theme="auto" data-palette="navy" data-resolved-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,61 +13,107 @@
 <meta name="report-document" content="{{DOCUMENT}}" />
 <meta name="report-session" content="{{SESSION}}" />
 <script>
-/* Anti-flash: resolve stored preferences before first paint. */
+/* Anti-flash: the stored appearance, the sidebar's collapsed state and the
+   diff preference land on <html> before the first paint. Storage may throw
+   (private window, blocked site data): the page then opens on its defaults. */
 (function () {
-  var t = localStorage.getItem("vr-theme");
-  if (t === "light" || t === "dark" || t === "auto") document.documentElement.setAttribute("data-theme", t);
-  var d = localStorage.getItem("vr-diff");
-  document.documentElement.setAttribute("data-diff", d === "off" ? "off" : "on");
+  var root = document.documentElement;
+  function stored(key) { try { return localStorage.getItem(key); } catch (error) { return null; } }
+  var mode = stored("vr-theme");
+  if (mode !== "light" && mode !== "dark") mode = "auto";
+  var palette = stored("vr-palette");
+  if (palette !== "violet" && palette !== "grey") palette = "navy";
+  var dark = mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  root.setAttribute("data-theme", mode);
+  root.setAttribute("data-palette", palette);
+  root.setAttribute("data-resolved-theme", dark ? "dark" : "light");
+  root.setAttribute("data-diff", stored("vr-diff") === "off" ? "off" : "on");
+  if (stored("vr-sidebar") === "collapsed") root.classList.add("sidebar-collapsed");
 })();
 </script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
 {{HEAD_LIBS}}
 <style>
 {{STYLES}}
 </style>
 </head>
 <body>
-<div id="progress"></div>
-<button class="menu-btn" aria-label="Menu">☰</button>
-<div class="layout">
-<aside class="sidebar">
-  <div class="side-head">
-    <h1>{{TITLE}}</h1>
-    <button id="theme-toggle" title="Basculer clair/sombre" aria-label="Basculer le thème">◐</button>
+{{ICONS}}
+<div class="vr-app">
+<aside class="sidebar" id="sidebar" aria-label="Navigation du document">
+  <div class="brand">
+    <a class="brand-link" href="index.html" title="Retour à la galerie">
+      <svg class="icon" aria-hidden="true"><use href="#vr-i-library"></use></svg><span class="label">Galerie</span>
+    </a>
+    <button type="button" class="icon-button sidebar-collapse" id="sidebar-collapse" aria-label="Replier la barre latérale" aria-controls="sidebar" aria-expanded="true">
+      <svg class="icon icon-when-open" aria-hidden="true"><use href="#vr-i-panel-left-close"></use></svg>
+      <svg class="icon icon-when-collapsed" aria-hidden="true"><use href="#vr-i-panel-left"></use></svg>
+    </button>
   </div>
-  <div class="subtitle">{{SUBTITLE}}</div>
-  {{SIDE_CONTROLS}}
-  <nav id="toc">
-    <div class="toc-label">Sommaire</div>
-{{TOC}}
-  </nav>
+  <div class="sidebar-body">
+    <a class="rail-link" href="index.html" aria-label="Retour à la galerie">
+      <svg class="icon" aria-hidden="true"><use href="#vr-i-library"></use></svg>
+    </a>
+    <div class="side-title">
+      <p class="side-heading">{{TITLE}}</p>
+      <p class="side-subtitle">{{SUBTITLE}}</p>
+    </div>
+    <section class="sidebar-contents" aria-labelledby="contents-title" hidden>
+      <h2 class="sidebar-contents-title" id="contents-title">Sommaire</h2>
+      <nav class="contents-list" id="toc" aria-label="Sections du document"></nav>
+    </section>
+  </div>
 </aside>
-<div class="content"><main>
+<button type="button" class="sidebar-shade" id="sidebar-shade" aria-label="Fermer la barre latérale" hidden></button>
 
-  <span class="eyebrow">{{EYEBROW}}</span><span class="headdate">{{DATE}}</span>
-  <h1>{{TITLE}}</h1>
-  <p class="lede">{{SUBTITLE}}</p>
+<div class="vr-main">
+  <header class="reader-header">
+    <button type="button" class="icon-button mobile-menu" id="mobile-menu" aria-label="Ouvrir la barre latérale" aria-controls="sidebar" aria-expanded="false">
+      <svg class="icon" aria-hidden="true"><use href="#vr-i-menu"></use></svg>
+    </button>
+    <div class="reader-title">
+      {{BREADCRUMB}}
+      <p class="reader-heading" title="{{TITLE}}">{{TITLE}}</p>
+    </div>
+    <div class="reader-toolbar" role="toolbar" aria-label="Actions du document">
+      {{TOOLBAR}}
+    </div>
+  </header>
+
+  <div class="reading">
+    <main>
+      <header class="doc-head">
+        <p class="doc-meta"><span class="eyebrow">{{EYEBROW}}</span><span class="headdate">{{DATE}}</span></p>
+        <h1>{{TITLE}}</h1>
+        <p class="lede">{{SUBTITLE}}</p>
+      </header>
 
 {{CHANGELOG}}
 {{CONTENT}}
 
-</main></div>
+    </main>
+  </div>
+</div>
 </div>
 
-<button id="vr-bubble" type="button">Commenter</button>
-<aside id="vr-panel" aria-label="Commentaires">
-  <div class="vr-panel-head">
-    <h2>Commentaires</h2>
-    <button class="vr-close" type="button" aria-label="Fermer">✕</button>
-    <div class="vr-filters">
-      <button type="button" data-filter="open" aria-pressed="true">Ouverts</button>
-      <button type="button" data-filter="resolved" aria-pressed="false">Résolus</button>
-      <button type="button" data-filter="all" aria-pressed="false">Tous</button>
-    </div>
-  </div>
-  <div class="vr-panel-body" id="vr-threads"></div>
-  <div class="vr-panel-foot" id="vr-foot"></div>
-</aside>
+<div class="appearance-menu" id="appearance-menu" role="dialog" aria-label="Apparence" hidden>
+  <section class="menu-section" aria-labelledby="appearance-mode">
+    <h2 class="menu-heading" id="appearance-mode">Thème</h2>
+    <button type="button" class="menu-option" data-theme-mode="auto" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#vr-i-monitor"></use></svg><span>Système</span><svg class="icon menu-tick" aria-hidden="true"><use href="#vr-i-check"></use></svg></button>
+    <button type="button" class="menu-option" data-theme-mode="light" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#vr-i-sun"></use></svg><span>Clair</span><svg class="icon menu-tick" aria-hidden="true"><use href="#vr-i-check"></use></svg></button>
+    <button type="button" class="menu-option" data-theme-mode="dark" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#vr-i-moon"></use></svg><span>Sombre</span><svg class="icon menu-tick" aria-hidden="true"><use href="#vr-i-check"></use></svg></button>
+  </section>
+  <section class="menu-section" aria-labelledby="appearance-palette">
+    <h2 class="menu-heading" id="appearance-palette">Palette sombre</h2>
+    <button type="button" class="menu-option" data-theme-palette="navy" aria-pressed="false"><span class="swatch swatch-navy" aria-hidden="true"></span><span>Marine</span><svg class="icon menu-tick" aria-hidden="true"><use href="#vr-i-check"></use></svg></button>
+    <button type="button" class="menu-option" data-theme-palette="violet" aria-pressed="false"><span class="swatch swatch-violet" aria-hidden="true"></span><span>Violet</span><svg class="icon menu-tick" aria-hidden="true"><use href="#vr-i-check"></use></svg></button>
+    <button type="button" class="menu-option" data-theme-palette="grey" aria-pressed="false"><span class="swatch swatch-grey" aria-hidden="true"></span><span>Gris</span><svg class="icon menu-tick" aria-hidden="true"><use href="#vr-i-check"></use></svg></button>
+  </section>
+</div>
+
+<aside id="vr-panel" aria-label="Commentaires" hidden></aside>
 
 <script type="application/json" id="vr-bootstrap">{{BOOTSTRAP}}</script>
 {{SCRIPTS}}

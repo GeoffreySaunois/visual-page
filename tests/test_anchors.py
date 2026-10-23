@@ -51,6 +51,21 @@ def test_a_rewritten_quote_drifts_but_the_thread_survives():
     assert thread.anchor.quote == QUOTE
 
 
+def test_a_whole_block_thread_stays_anchored_when_its_block_is_edited():
+    # Regression: a figure comment carries an empty quote, which used to drift on every re-render.
+    blocks = split_blocks(BODY)
+    threads = comments.ReportThreads.empty("report-test")
+    thread = threads.open_thread(
+        anchor=comments.anchors.anchor_on(blocks, 1, quote="", prefix="", suffix=""),
+        state=comments.AnchorState.ANCHORED,
+        author=comments.GEOFFREY,
+        body="ce tableau est faux",
+        now=comments.now_utc(),
+    )
+    edited = BODY.replace("3,20 €", "3,40 €")
+    assert comments.anchors.rehome(thread, split_blocks(edited)) is comments.AnchorState.ANCHORED
+
+
 def test_a_deleted_block_orphans_the_thread():
     thread = thread_on(BODY, QUOTE)
     without = "## Méthode\n\nTrois métriques.\n"

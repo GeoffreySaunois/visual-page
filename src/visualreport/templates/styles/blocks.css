@@ -12,13 +12,18 @@
   background: var(--surface);
   border: 1.5px solid var(--border);
 }
+/* The title stays a block of inline text, with the icon hanging in its left
+   padding: as a flex container, every text run and every inline `code` of the
+   title would become a column of its own. */
 .admonition > .admonition-title {
   font-weight: 800; font-size: 12.5px; text-transform: uppercase; letter-spacing: .06em;
   margin: 0 0 12px;
-  display: flex; align-items: center; gap: 9px;
+  position: relative; padding-left: 27px;
 }
+.admonition > .admonition-title code { text-transform: none; letter-spacing: normal; }
 .admonition > .admonition-title::before {
-  content: ""; width: 18px; height: 18px; flex: 0 0 18px;
+  content: ""; width: 18px; height: 18px;
+  position: absolute; left: 0; top: calc((1lh - 18px) / 2);
   background-color: currentColor;
   -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; -webkit-mask-size: contain;
   mask-repeat: no-repeat; mask-position: center; mask-size: contain;
@@ -84,6 +89,9 @@ main details > summary {
   padding: 14px 0; list-style: none;
   color: var(--accent-strong);
   display: flex; align-items: center; gap: 8px;
+  /* The title is a flex item, which never shrinks below its longest word: a
+     file name in it would push the box past a phone's edge. */
+  overflow-wrap: anywhere;
 }
 main details > summary::before { content: "▸"; transition: transform .15s; color: var(--accent); }
 main details[open] > summary::before { transform: rotate(90deg); }
@@ -99,22 +107,13 @@ main th, main td { text-align: left; padding: 9px 14px; border-bottom: 1px solid
 main th {
   background: color-mix(in srgb, var(--accent) 10%, var(--surface));
   color: var(--accent-strong); font-size: 13px; text-transform: uppercase; letter-spacing: .04em;
-  cursor: pointer; user-select: none;
 }
-main th.sorted-asc::after { content: " ▲"; font-size: 10px; }
-main th.sorted-desc::after { content: " ▼"; font-size: 10px; }
 main tr:nth-child(even) td { background: var(--row-alt); }
 main tr:last-child td { border-bottom: none; }
-.tablewrap { overflow-x: auto; }
 /* Long inline-code tokens (paths, identifiers) must be able to wrap inside
    cells, or they dictate a huge min column width. */
 main td { overflow-wrap: break-word; }
 main td code, main th code { white-space: normal; overflow-wrap: anywhere; }
-/* A table wider than the prose column breaks out into the free margins
-   (symmetric, wide screens only) before falling back to horizontal scroll. */
-@media (min-width: 1280px) {
-  .tablewrap.wide { width: calc(100% + 220px); margin-left: -110px; }
-}
 
 /* ----------------------------------------------------------- KPI band ----- */
 .kpis {
@@ -181,8 +180,8 @@ figcaption { font-size: 14px; color: var(--text-soft); margin-top: 10px; text-al
 
 /* ----------------------------------------------------------- Diff --------- */
 /* ```diff — unified mode: one row per line, slim +/− gutter, tinted rows;
-   split mode: two labeled pre columns. Diff tables are excluded from the
-   sortable/tablewrap JS (see selector in page.js). */
+   split mode: two labeled pre columns. Diff tables keep their static
+   rendering: the interactive tables of tables.js leave them out. */
 figure.diff { margin: 28px 0; }
 main table.diff-table {
   width: 100%; margin: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed;
@@ -201,8 +200,9 @@ main table.diff-table td {
   padding: 1px 10px; border-bottom: none; vertical-align: top;
   white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface);
 }
+main table.diff-table col.gut { width: 26px; }
 main table.diff-table td.gut {
-  width: 26px; padding: 1px 2px; text-align: center; user-select: none;
+  padding: 1px 2px; text-align: center; user-select: none;
   font-weight: 700; color: var(--text-soft);
 }
 main table.diff-table tr.add td { background: color-mix(in srgb, var(--green) 13%, var(--surface)); }

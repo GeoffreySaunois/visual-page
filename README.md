@@ -67,13 +67,16 @@ src/visualreport/
     composition.py    rebuilding a body through a chain of per-block decorators
     anchors.py        decorator: give every block a DOM address
     converter.py      the markdown converter and its extensions
+    lists.py          lists written right under a sentence, as CommonMark reads them
+    math.py           the TeX it typesets, told apart from prices written with `$`
     fences/           the dialect's fences (figures, data, code, layout)
     page.py           template + style/script partials ──► the final HTML
-    controls.py       which controls the sidebar carries
+    controls.py       which controls the top bar's toolbar carries
     libraries.py      the pinned CDN libs, included only when used
     images.py lints.py
   iteration/        what changed since the previous version of this document
     matching.py       block alignment (also used to re-home comments)
+    edits.py          bounded Myers edit scripts, so a huge block never stalls a diff
     annotate.py       decorator: box or word-diff a changed block
     changelog.py review.py
   comments/         threads on a passage
@@ -133,6 +136,11 @@ decorator, not rewriting the body again.
 - **Reading never needs the server.** Every page embeds its threads as JSON, so an
   archived file opened by double-click shows the whole exchange. Only *writing*
   needs the server.
+- **A palette dresses the chrome, never the document.** The dark palettes (navy,
+  violet, grey) recolour the sidebar, the top bar, the comments panel and the
+  menus; the reading column re-declares the navy tokens for itself (`charte.css`),
+  so every content block, the lightbox, and the colours charts and diagrams read
+  from a probe inside `main` stay on the document canvas, as in Lab.
 - **A comment is never dropped.** If the quoted words were rewritten it *drifts*;
   if the block disappeared it is *orphaned*. Both stay visible and say so.
 - **Two writers, one hosted store.** Browser and CLI mutations use authenticated

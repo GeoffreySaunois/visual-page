@@ -75,7 +75,8 @@ def rehome(thread: Thread, blocks: list[Block]) -> AnchorState:
             "section": nearest_heading(blocks, block.index),
         }
     )
-    thread.state = AnchorState.ANCHORED if holds_quote(block, anchor.quote) else AnchorState.DRIFTED
+    holds = anchor.covers_block or holds_quote(block, anchor.quote)
+    thread.state = AnchorState.ANCHORED if holds else AnchorState.DRIFTED
     return thread.state
 
 

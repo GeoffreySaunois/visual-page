@@ -48,8 +48,8 @@ the body of the reasoning.
    Code highlighting happens at build time (Pygments), so it costs no library. You
    never write a `<script src=…>` yourself.
 3. **Use the charte.** It lives in `templates/styles/*.css` and is inlined at build
-   time: design tokens, dark mode, the light/dark toggle, the sortable tables, the
-   comment rail. Write content, never visual identity — no `<style>` block and no
+   time: design tokens, Lab's themes and dark palettes, the reader frame, the
+   interactive tables, the comments panel. Write content, never visual identity — no `<style>` block and no
    inline `style=` in a source, except in the rare raw-HTML escape hatch.
 4. **Adaptive interactivity** (the user's default):
    - Time series, trajectories, "X over runs/iterations" → **interactive line/bar chart** (Chart.js).
@@ -92,8 +92,9 @@ the body of the reasoning.
 
 **Author markdown, not HTML.** The page is written as a `.md` source file (front matter
 + the dialect below) and compiled by `visual-report render` into a self-contained HTML
-page — sidebar table of contents with scroll-spy, reading-progress bar, light/dark
-theme toggle, charte boxes, build-time Pygments highlighting, and pinned CDN tags
+page — Gym Lab's reader frame (a collapsible sidebar with a numbered table of
+contents that follows the reading, a top bar of icon buttons, Lab's themes: system /
+light / dark × navy / violet / grey palettes), charte boxes, build-time Pygments highlighting, and pinned CDN tags
 injected **only** for the features the page actually uses (MathJax / Chart.js /
 Mermaid). Writing markdown keeps the register in "document" mode (dense, developed
 prose) instead of "landing page" mode, and removes the lossy spec-to-sub-agent hop:
@@ -152,13 +153,21 @@ with the explicit instruction that every paragraph is carried word-for-word.
      body of the reasoning.
    - **Charts**: fenced ` ```chart title="…" caption="…" height="320" ` block whose
      body is a strict-JSON Chart.js config. Datasets without explicit colors get the
-     charte palette automatically; charts re-render on theme toggle.
+     charte palette automatically; charts re-render when the theme or palette changes.
    - **Diagrams**: fenced ` ```mermaid caption="…" ` block (theme-aware, re-renders
-     on toggle).
+     when the theme or palette changes).
    - **KPI band**: fenced ` ```kpi ` block with a YAML list of `{value, label, note?}`.
    - **Math**: `\(inline\)` and `$$display$$` — never bare `$` (dollar amounts stay
      literal; MathJax only processes the wrapped spans).
-   - **Tables**: markdown tables — rendered charte-styled and click-to-sort.
+   - **Tables**: markdown tables — charte-styled and interactive: columns sized to
+     their content, sort (click a header), resize, reorder (drag a header), widen into
+     the margins, reset; a reader's layout is remembered in their browser. Tables
+     with merged cells stay static.
+   - **Figures**: tables, diagrams, charts and images carry two actions in their
+     corner — Commenter and Afficher en grand (a lightbox; a filmstrip browses on in
+     it). Commenter opens a thread on the whole block: its quote is empty, the
+     figure gets a rule and an outline, and a marker in its left gutter reaches its
+     threads afterwards. Code blocks carry a Copy action.
    - **File maps**: fenced ` ```filetree ` block — YAML list of `{path, flag:
      added|modified|removed|renamed, note?}`, rendered as flagged A/M/D/R rows.
    - **Diffs**: fenced ` ```diff title="…" mode="unified|split" ` block. Unified
@@ -288,7 +297,7 @@ Every page also exists on paper. One print stylesheet (`templates/styles/print.c
 decides what that looks like, and the three ways of getting a PDF all go through
 it, so they produce the same document:
 
-- **The `PDF` button** in the sidebar's control strip — it opens the browser's
+- **The PDF button** (download icon) in the top bar's toolbar — it opens the browser's
   print dialog, where *Enregistrer au format PDF* does the rest. It works on a
   served page and on an archived file opened by double-click alike: no server,
   nothing installed.
@@ -311,8 +320,8 @@ and any other renderer would print them empty.
 
 **What paper does to a page.** The stylesheet forces the light palette whatever
 theme the reader is in, drops everything that exists only to be clicked (the
-sidebar, the control strip, the comment rail and its bubble, the filmstrip's
-arrows), and keeps the small blocks whole across a page break. What a gesture
+sidebar, the top bar, the comments panel and the selection action, the figure
+actions, the filmstrip's arrows), and keeps the small blocks whole across a page break. What a gesture
 would have revealed is opened for the print and put back after: a collapsed
 `???` annex is expanded, every tab panel is stacked under its own tab's title,
 every filmstrip slide is printed in sequence. A screenshot taller than the text
@@ -353,14 +362,17 @@ review, a recap is re-rendered after new commits.
   `▲ N changements` header and one line per change, each with an inline badge
   (`modifié` / `nouveau` / `retiré`) and a link to the nearest heading of the
   changed block.
-- **In-page controls** (top of the sidebar):
-  - **Diff on/off** toggle — *on* reviews the highlighted changes + changelog,
-    *off* shows the clean final document. Persisted in `localStorage` (`vr-diff`),
-    default *on*. The button only appears when a diff was computed.
-  - **3-state theme** toggle — système (◐) → clair (☀) → sombre (☾), cycling and
-    persisted (`vr-theme`).
-  - **← Index** — back to the gallery. Always present, even with no diff.
-  - **Commentaires N** — opens the comment rail (see below); always present.
+- **In-page controls** (the top bar's toolbar, icon buttons labelled by tooltip):
+  - **Diff** toggle (file-diff icon) — pressed reviews the highlighted changes +
+    changelog, released shows the clean final document. Persisted in
+    `localStorage` (`vr-diff`), default *on*. Only present when a diff was computed.
+  - **Commentaires** (speech-bubble icon, open-thread count as a badge, shortcut `C`) —
+    opens the comment panel (see below); always present.
+  - **PDF** (download icon) and **Apparence** — the appearance menu: thème
+    Système / Clair / Sombre and palette sombre Marine / Violet / Gris, persisted
+    per viewer (`vr-theme`, `vr-palette`).
+  - **Galerie** — back to the gallery, from the sidebar's top row (or the rail
+    when the sidebar is collapsed) and from the breadcrumb.
 
 Matching is `difflib` over the source blocks (a pragmatic top-level splitter that
 keeps fences and callouts whole); a changed block pairs as *modified* when it stays
@@ -374,12 +386,15 @@ Hosted comments live in Firestore, independently of the pages, and survive every
 publication. Local `comments/<document>.json` files are migration backups or preview data. Every genre
 gets this: a plan is approved through its threads, a recap is challenged in them.
 
-**In the page.** Select any text → *Commenter* → the thread opens in the right rail
-with the passage quoted and highlighted in the document. A thread holds an ordered
+**In the page.** Select any text → *Commenter* → the thread opens in the Comments
+panel on the right (on a wide screen it pushes the reading column aside, and its
+left edge resizes it) with the passage quoted and highlighted in the document. A
+figure's own *Commenter* action opens a thread on the whole block instead, with an
+empty quote. A thread holds an ordered
 exchange, is replied to and resolved (hidden from the default view, reopenable);
 each message carries a **⋮** menu to *rewrite* it (it is then marked `modifié`) or
 *delete* it — deleting the last message of a thread deletes the thread. Filters:
-*Ouverts* / *Résolus* / *Tous*. **Writing requires the served page** — always hand
+*Ouverts* / *Résolus*. **Writing requires the served page** — always hand
 over the hosted page published with `--serve` if you expect feedback. It is
 commentable on both phone and desktop. A page opened as a plain file still shows every thread,
 read-only.
@@ -423,9 +438,10 @@ quoted words were rewritten is `dérivé` (its block is flagged in the margin, a
 the digest shows the *current* wording); a thread whose block disappeared is
 `orphelin`. Nothing is ever dropped for having lost its anchor.
 
-**Checking the phone rendering, headlessly.** The panel is a bottom sheet under
-720px, and that layout is verified locally through the **Playwright MCP** — no
-dependency is added to the package, the tooling lives in the session. Drive a
+**Checking the phone rendering, headlessly.** Under 700px the panel takes the whole
+visible screen and the sidebar becomes a drawer opened from the top bar's menu
+button. That layout is verified locally through the **headless Playwright MCP** —
+no dependency is added to the package, the tooling lives in the session. Drive a
 *hosted* page using an authenticated browser session:
 
 1. `browser_resize` **390×844**, then `browser_navigate` to
@@ -433,17 +449,17 @@ dependency is added to the package, the tooling lives in the session. Drive a
    cache-buster (`?v=2`) — Chrome otherwise replays the previous file and you
    review the old script. Re-`browser_resize` after any navigation hiccup: a
    reset viewport silently puts you back on the desktop layout.
-2. The sidebar is off-screen on a phone, so the panel opens in two taps: click
-   `.menu-btn`, then `#comments-toggle`.
+2. The panel opens from the top bar on a phone too: click `#comments-toggle`.
 3. What to look at — a thread is opened by a **selection only**: select a passage
-   and dispatch a `mouseup`, the `Commenter` bubble shows, and the draft card
+   and dispatch a `mouseup`, the floating `Commenter` action shows, and the draft card
    carries the quoted passage. Send it, reload, and the thread is still there with
    its anchor and its `mark.vr-anchor` in the text. The panel foot holds the
    offline notice alone and is `hidden` while the server answers, so the sheet
    ends flush on its last card. Nothing overflows sideways:
    `document.documentElement.scrollWidth === clientWidth`.
 4. `browser_resize` **1600×900** confirms the desktop is untouched — the panel is
-   a full-height rail on the right edge, the sidebar is visible.
+   a column docked under the top bar on the right, the sidebar is visible (and
+   collapses to a rail of icons from its top row).
 5. Delete whatever thread the check created (`visual-report delete <document> tN`).
 
 **What this cannot see.** A driven Chrome/WebKit has no dynamic browser toolbar,
@@ -457,7 +473,7 @@ the real iPhone or not at all.
 After writing, give the user **one line**: what the page covers + the URL of the
 page + the gallery path. No re-narration of the content — the page *is* the content
 now. When the page was rendered as an iteration diff, add that it shows the changes
-since the previous version (toggle in the sidebar).
+since the previous version (the Diff button in the top bar).
 
 **Which URL.** Share the HTTPS URL printed by `render --serve`, plus the hosted
 gallery https://artefacts.saunois.xyz. Never substitute a local file or loopback
@@ -490,7 +506,8 @@ comment stores and the running server's state for a cosmetic gain.
 - Dense by default: a reader who never opens the source document misses nothing of the
   argument. If a section only makes sense with the source open, it failed.
 - Looks intentional on first open: consistent spacing, the charte's accent color,
-  dark mode working via `prefers-color-scheme`.
+  light and dark themes (the system's by default) and the three dark palettes — which
+  dress the chrome only: the document keeps its navy canvas under every one.
 - Every number on the page is traceable to the source; never invent data to fill a chart.
 - Prints cleanly — see *Printing a page*: the template handles `@media print`, and
   `--pdf` (or the page's `PDF` button) turns it into a document to send or file.

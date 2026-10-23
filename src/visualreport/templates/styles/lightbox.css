@@ -1,0 +1,69 @@
+/* --------------------------------------------------- Media lightbox ------- */
+/* The full-size view of a figure (scripts/lightbox.js). The dialog shrinks to
+   the picture and never outgrows the viewport; a table scrolls inside it. */
+.media-lightbox {
+  width: fit-content; max-width: min(96vw, 1400px); padding: 10px;
+  border: 1px solid var(--border); border-radius: calc(var(--radius) + 2px);
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow);
+}
+.media-lightbox::backdrop { background: color-mix(in srgb, black 55%, transparent); backdrop-filter: blur(3px); }
+.media-lightbox:focus-visible { outline: none; }
+.media-lightbox-frame { position: relative; line-height: 0; }
+.media-lightbox-image {
+  display: block; max-width: min(92vw, 1350px); max-height: calc(90vh - 4rem);
+  margin: 0 auto; border-radius: var(--radius); object-fit: contain;
+}
+.media-lightbox-image[hidden], .media-lightbox-table[hidden], .media-lightbox-download[hidden] { display: none; }
+/* A table at its natural width, its header held while its rows scroll; the
+   actions sit above it, so the header row stays clear of them. */
+.media-lightbox.is-table { width: min(96vw, 1400px); }
+.media-lightbox.is-table .media-lightbox-frame { padding-top: 42px; }
+.media-lightbox-table {
+  max-height: calc(90vh - 7rem); overflow: auto; line-height: normal;
+  border-radius: var(--radius); background: var(--bg);
+}
+.media-lightbox-table:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.media-lightbox-table table { width: max-content; min-width: 100%; margin: 0; box-shadow: none; border-radius: 0; overflow: visible; }
+.media-lightbox-table th { position: sticky; top: 0; z-index: 1; }
+.media-lightbox-table td, .media-lightbox-table th { max-width: 48ch; }
+.media-lightbox-table .th-label { display: inline; -webkit-line-clamp: none; line-clamp: none; }
+.media-lightbox-table .th-inner { display: block; }
+/* A zero width with a full minimum keeps the caption out of the dialog's
+   measure, so a long caption ellipsizes rather than widening a small picture. */
+.media-lightbox-footer {
+  display: flex; gap: 10px; align-items: baseline;
+  width: 0; min-width: calc(100% - 8px); margin: 10px 4px 0;
+}
+.media-lightbox-caption {
+  flex: 1; min-width: 0; margin: 0; overflow: hidden; color: var(--text-soft);
+  font-size: 13px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap;
+}
+.media-lightbox-count { flex: none; color: var(--text-soft); font-family: var(--mono); font-size: 12.5px; }
+.media-lightbox-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
+.media-lightbox.is-table .media-lightbox-actions { top: 0; right: 0; }
+/* Light on a dark glass in both themes, so the icons read over any picture. */
+.media-lightbox-action {
+  display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
+  border: 1px solid rgb(255 255 255 / .18); border-radius: 8px;
+  background: rgb(15 15 30 / .45); color: white; backdrop-filter: blur(4px);
+  cursor: pointer; font: inherit;
+}
+.media-lightbox-action:hover { background: rgb(15 15 30 / .7); }
+.media-lightbox-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.media-lightbox-action svg {
+  width: 16px; height: 16px; fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+/* A gallery's previous and next buttons: the filmstrip's own. */
+.media-lightbox-step {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; padding: 0 0 3px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface); color: var(--text); font-size: 22px; line-height: 1; cursor: pointer;
+}
+.media-lightbox-step:hover { border-color: var(--accent); background: var(--accent); color: var(--bg); }
+.media-lightbox-step[hidden] { display: none; }
+.media-lightbox-prev { left: 10px; }
+.media-lightbox-next { right: 10px; }
+@media print { .media-lightbox { display: none; } }

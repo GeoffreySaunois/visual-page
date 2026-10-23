@@ -40,7 +40,10 @@ def header(threads: ReportThreads) -> str:
 def thread_section(thread: Thread) -> str:
     lines = [f"### {thread.id} — {status_line(thread)}"]
     if thread.anchor is not None:
-        lines.append(f"Passage cité : « {thread.anchor.quote} »")
+        if thread.anchor.covers_block:
+            lines.append("Bloc entier commenté (figure, tableau ou image)")
+        else:
+            lines.append(f"Passage cité : « {thread.anchor.quote} »")
         lines.append(f"Bloc {thread.anchor.block_index} de la source :")
         lines.append(indent(thread.anchor.block_source))
     lines.extend(f"- {exchange_line(comment)}" for comment in thread.comments)
