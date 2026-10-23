@@ -1,219 +1,390 @@
 /* ===========================================================================
-   The comment layer: highlights in the text, threads in a right rail.
-   Reading is always available (an archived page carries its threads inline);
-   writing needs the local server, and the panel says so when it is absent.
+   The comment layer: the Comments panel on the right of the reading column,
+   the floating « Commenter » action over a selected passage, and the marker
+   strokes on every commented passage. Built by `comments.js` inside the frame's
+   empty `#vr-panel`; the frame's stylesheet pushes the reading column aside
+   while `html.vr-comments-open` is set, by `--panel-w`.
+
+   Every colour derives from the charte's base tokens, except the marker yellow,
+   which is a semantic highlight with its own light and dark steps.
    =========================================================================== */
 
-:root{
-  --vr-c-human: var(--accent);
-  --vr-c-agent: var(--teal);
-  --vr-c-mark:  #ffd54a;
-  --vr-panel-w: 384px;
-}
-[data-theme="dark"]{ --vr-c-mark:#c9a227; }
-@media (prefers-color-scheme: dark){ [data-theme="auto"]{ --vr-c-mark:#c9a227; } }
+:root {
+  --vr-line:         var(--border);
+  --vr-line-strong:  color-mix(in srgb, var(--text) 14%, var(--border));
+  --vr-muted:        var(--text-soft);
+  --vr-faint:        color-mix(in srgb, var(--text-soft) 70%, var(--bg));
+  --vr-hover:        color-mix(in srgb, var(--text) 7%, transparent);
+  --vr-accent-soft:  color-mix(in srgb, var(--accent) 10%, var(--surface));
+  --vr-ring:         color-mix(in srgb, var(--accent) 55%, var(--surface));
+  --vr-pop-shadow:   0 1px 2px rgba(16, 18, 27, .08), 0 8px 28px rgba(16, 18, 27, .14);
+  --vr-input-shadow: 0 1px 2px rgba(16, 18, 27, .05);
 
-/* ------------------------------------------------------- Anchors in the text */
-mark.vr-anchor{
-  background:color-mix(in srgb, var(--vr-c-mark) 42%, transparent);
-  color:inherit; border-radius:3px; padding:0 1px; cursor:pointer;
-  box-shadow:inset 0 -2px 0 color-mix(in srgb, var(--vr-c-mark) 80%, transparent);
+  /* A commented passage is a marker stroke: one yellow read at two steps,
+     translucent so it keeps the surface underneath and the text colour. */
+  --vr-mark:          #ffd60a;
+  --vr-mark-idle:     45%;
+  --vr-mark-hover:    60%;
+  --vr-mark-active:   75%;
+  --vr-mark-rule:     #a15c00;
+  --vr-mark-rule-idle: transparent;
 }
-mark.vr-anchor:hover{ background:color-mix(in srgb, var(--vr-c-mark) 62%, transparent); }
-mark.vr-anchor.resolved{ background:none; box-shadow:inset 0 -1px 0 var(--border); }
-mark.vr-anchor.active{ box-shadow:0 0 0 2px var(--vr-c-mark); }
-/* A block whose thread lost its exact wording is flagged as a whole, since the
-   words to underline no longer exist. */
-.vr-b.vr-drifted{ box-shadow:inset 3px 0 0 var(--vr-c-mark); padding-left:10px; }
-
-/* ------------------------------------------------------- Selection bubble -- */
-#vr-bubble{
-  position:absolute; z-index:80; transform:translate(-50%,-100%);
-  background:var(--accent); color:#fff; border:none; border-radius:999px;
-  font-family:inherit; font-size:12.5px; font-weight:600; padding:7px 13px;
-  cursor:pointer; box-shadow:var(--shadow); display:none;
+:root[data-resolved-theme="dark"],
+:root[data-theme="dark"] {
+  --vr-mark:          #ffc53d;
+  --vr-mark-idle:     30%;
+  --vr-mark-hover:    36%;
+  --vr-mark-active:   42%;
+  --vr-mark-rule:     #fdb559;
+  --vr-mark-rule-idle: #fdb559;
+  --vr-pop-shadow:    0 1px 2px rgba(0, 0, 0, .4), 0 10px 32px rgba(0, 0, 0, .45);
+  --vr-input-shadow:  0 1px 2px rgba(0, 0, 0, .3);
 }
-#vr-bubble.visible{ display:block; }
-/* Under the selection instead of over it, where a touch selection's own native
-   callout does not sit. */
-#vr-bubble.below{ transform:translate(-50%,0); }
-
-/* ------------------------------------------------------- The rail ---------- */
-#vr-panel{
-  position:fixed; top:0; right:0; z-index:70;
-  width:var(--vr-panel-w); max-width:100vw;
-  /* `dvh` is the viewport actually on screen; `vh` is the taller one a mobile
-     browser's overlaying toolbar leaves partly hidden. */
-  height:100vh; height:100dvh;
-  display:flex; flex-direction:column;
-  background:var(--surface); border-left:1px solid var(--border); box-shadow:var(--shadow);
-  transform:translateX(100%); transition:transform .22s ease;
-}
-[data-comments="open"] #vr-panel{ transform:none; }
-@media (min-width:1500px){
-  /* Wide screens keep the prose centered where it was; narrower ones let the
-     rail overlap rather than squeeze the column. */
-  [data-comments="open"] .content{ padding-right:calc(40px + var(--vr-panel-w)); }
-}
-
-.vr-panel-head{
-  padding:16px 18px 12px; border-bottom:1px solid var(--border);
-  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-}
-.vr-panel-head h2{ font-size:14px; margin:0; flex:1 1 auto; letter-spacing:.02em; }
-.vr-panel-head .vr-close{
-  background:none; border:none; color:var(--text-soft); font-size:18px; cursor:pointer; line-height:1;
-}
-.vr-filters{ display:flex; gap:6px; flex:1 1 100%; }
-.vr-filters button{
-  flex:1 1 auto; background:transparent; border:1px solid var(--border); border-radius:8px;
-  color:var(--text-soft); font-family:inherit; font-size:12px; padding:5px 8px; cursor:pointer;
-}
-.vr-filters button[aria-pressed="true"]{ border-color:var(--accent); color:var(--accent); font-weight:600; }
-
-.vr-panel-body{ flex:1 1 auto; overflow-y:auto; padding:14px; }
-/* The foot exists for the offline notice; served, it is hidden rather than left
-   as an empty bordered band under the threads. */
-.vr-panel-foot{ border-top:1px solid var(--border); padding:12px 14px; }
-.vr-panel-foot[hidden]{ display:none; }
-.vr-offline{
-  font-size:12px; color:var(--text-soft); background:var(--code-bg);
-  border-radius:8px; padding:9px 11px; line-height:1.5;
-}
-.vr-offline code{ font-size:11.5px; }
-
-/* ------------------------------------------------------- Thread cards ------ */
-.vr-thread{
-  border:1px solid var(--border); border-radius:12px; background:var(--bg);
-  padding:12px 13px; margin-bottom:12px; font-size:14px;
-}
-.vr-thread.active{ border-color:var(--accent); box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent); }
-.vr-thread.resolved{ opacity:.72; }
-.vr-thread-head{ display:flex; align-items:center; gap:7px; margin-bottom:8px; flex-wrap:wrap; }
-.vr-tid{ font-family:var(--mono); font-size:11.5px; color:var(--text-soft); }
-.vr-chip{
-  font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
-  padding:2px 7px; border-radius:999px; white-space:nowrap;
-}
-.vr-chip.human{ background:color-mix(in srgb,var(--vr-c-human) 18%,transparent); color:var(--vr-c-human); }
-.vr-chip.agent{ background:color-mix(in srgb,var(--vr-c-agent) 20%,transparent); color:var(--vr-c-agent); }
-.vr-chip.state{ background:color-mix(in srgb,var(--vr-c-mark) 30%,transparent); color:var(--text); }
-.vr-chip.done{ background:color-mix(in srgb,var(--green) 18%,transparent); color:var(--green); }
-.vr-section{ flex:1 1 100%; font-size:11.5px; color:var(--text-soft); }
-
-.vr-quote{
-  margin:0 0 10px; padding:6px 10px; border-left:2px solid var(--vr-c-mark);
-  background:color-mix(in srgb,var(--vr-c-mark) 10%,transparent);
-  font-size:13px; color:var(--text-soft); cursor:pointer;
-  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
-}
-
-.vr-msg{ padding:7px 0; border-top:1px dashed var(--border); }
-.vr-msg:first-of-type{ border-top:none; }
-.vr-msg-head{ display:flex; align-items:center; gap:8px; margin-bottom:3px; }
-.vr-edited{ font-size:10.5px; color:var(--text-soft); font-style:italic; }
-
-/* ⋮ overflow of a message: rewrite it, drop it, drop the thread. */
-.vr-menu{ position:relative; margin-left:auto; }
-.vr-menu-btn{
-  background:none; border:none; color:var(--text-soft); cursor:pointer;
-  font-size:15px; line-height:1; padding:0 2px; border-radius:6px;
-}
-.vr-menu-btn:hover{ color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent); }
-.vr-menu-items{
-  position:absolute; right:0; top:calc(100% + 4px); z-index:6; min-width:170px;
-  display:flex; flex-direction:column; padding:4px;
-  background:var(--surface); border:1px solid var(--border); border-radius:9px; box-shadow:var(--shadow);
-}
-.vr-menu-items button{
-  background:none; border:none; border-radius:6px; cursor:pointer;
-  font-family:inherit; font-size:12.5px; color:var(--text);
-  text-align:left; padding:6px 9px; white-space:nowrap;
-}
-.vr-menu-items button:hover{ background:color-mix(in srgb,var(--accent) 12%,transparent); color:var(--accent); }
-.vr-menu-items button.danger:hover{ background:color-mix(in srgb,var(--rose) 14%,transparent); color:var(--rose); }
-.vr-author{ font-size:12px; font-weight:700; }
-.vr-author.human{ color:var(--vr-c-human); }
-.vr-author.agent{ color:var(--vr-c-agent); }
-.vr-time{ font-size:11px; color:var(--text-soft); }
-.vr-body{ white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.55; }
-.vr-body code{ font-size:.85em; }
-
-.vr-actions{ display:flex; gap:6px; margin-top:9px; flex-wrap:wrap; }
-.vr-actions button{
-  background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--text-soft);
-  font-family:inherit; font-size:11.5px; padding:4px 9px; cursor:pointer;
-}
-.vr-actions button:hover{ border-color:var(--accent); color:var(--accent); }
-.vr-actions button.danger:hover{ border-color:var(--rose); color:var(--rose); }
-
-/* ------------------------------------------------------- Composer ---------- */
-.vr-composer{ margin-top:9px; }
-.vr-composer textarea{
-  width:100%; min-height:64px; resize:vertical; font-family:inherit; font-size:13.5px;
-  color:var(--text); background:var(--surface); border:1px solid var(--border);
-  border-radius:9px; padding:8px 10px; line-height:1.5;
-}
-.vr-composer textarea:focus{ outline:none; border-color:var(--accent); }
-.vr-composer-row{ display:flex; align-items:center; gap:8px; margin-top:7px; }
-.vr-composer-row .vr-hint{ flex:1 1 auto; font-size:11px; color:var(--text-soft); }
-.vr-composer-row button:not(.vr-send){
-  background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--text-soft);
-  font-family:inherit; font-size:12px; padding:5px 10px; cursor:pointer;
-}
-.vr-composer-row button:not(.vr-send):hover{ border-color:var(--accent); color:var(--accent); }
-.vr-send{
-  background:var(--accent); color:#fff; border:none; border-radius:8px;
-  font-family:inherit; font-size:12.5px; font-weight:600; padding:6px 13px; cursor:pointer;
-}
-.vr-send[disabled]{ opacity:.5; cursor:default; }
-
-.vr-empty{ font-size:13px; color:var(--text-soft); text-align:center; padding:24px 10px; }
-
-/* ------------------------------------------------------- On a phone -------- */
-/* A 384px rail on a 390px screen is the whole screen with none of the
-   affordances, so the panel rises from the bottom edge as a sheet: the document
-   stays readable above it and the threads sit under the thumb.
-
-   Its box is driven by the visual viewport — the part of the page a phone
-   actually shows. `--vr-view-h` is that height and `--vr-view-lift` the band
-   hidden below it (browser toolbar, then the virtual keyboard on top of it),
-   both published by `comments.js`. A fixed element is laid out against the full
-   layout viewport, which neither the toolbar nor the keyboard shrinks, so
-   without that lift the sheet's lower edge — the composer — sits behind them. */
-@media (max-width: 720px){
-  #vr-panel{
-    top:auto; left:0; right:0; bottom:var(--vr-view-lift, 0px);
-    width:auto; max-width:none;
-    height:84vh; height:84dvh;
-    max-height:var(--vr-view-h, 84dvh);
-    border-left:none; border-top:1px solid var(--border);
-    border-radius:16px 16px 0 0;
-    transform:translateY(calc(100% + var(--vr-view-lift, 0px)));
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"]:not([data-resolved-theme="light"]) {
+    --vr-mark:          #ffc53d;
+    --vr-mark-idle:     30%;
+    --vr-mark-hover:    36%;
+    --vr-mark-active:   42%;
+    --vr-mark-rule:     #fdb559;
+    --vr-mark-rule-idle: #fdb559;
+    --vr-pop-shadow:    0 1px 2px rgba(0, 0, 0, .4), 0 10px 32px rgba(0, 0, 0, .45);
+    --vr-input-shadow:  0 1px 2px rgba(0, 0, 0, .3);
   }
-  /* The grabber that reads as "this sheet has an edge you can see past". */
-  .vr-panel-head{ position:relative; padding:17px 14px 11px; }
-  .vr-panel-head::before{
-    content:""; position:absolute; top:6px; left:50%; transform:translateX(-50%);
-    width:38px; height:4px; border-radius:999px; background:var(--border);
-  }
-  .vr-panel-head .vr-close{
-    min-width:44px; min-height:44px; margin:-11px -10px -11px 0;
-    display:flex; align-items:center; justify-content:center; font-size:22px;
-  }
-  .vr-filters button{ min-height:44px; font-size:13.5px; }
-  .vr-panel-body{ min-height:0; padding:12px; -webkit-overflow-scrolling:touch; }
-  .vr-panel-foot{ padding:10px 12px calc(10px + env(safe-area-inset-bottom)); }
+}
 
+.vr-icon { width: 16px; height: 16px; flex: none; display: block; }
+
+/* ------------------------------------------------- Passages in the text --- */
+mark.vr-anchor {
+  background: color-mix(in srgb, var(--vr-mark) var(--vr-mark-idle), transparent);
+  color: inherit; border-radius: 2px; padding: 0 1px; cursor: pointer;
+  border-bottom: 1px solid var(--vr-mark-rule-idle);
+}
+mark.vr-anchor:hover { background: color-mix(in srgb, var(--vr-mark) var(--vr-mark-hover), transparent); }
+mark.vr-anchor.active {
+  background: color-mix(in srgb, var(--vr-mark) var(--vr-mark-active), transparent);
+  border-bottom: 2px solid var(--vr-mark-rule);
+}
+/* The browser's selection blue disappears into the yellow. */
+mark.vr-anchor::selection { background: var(--text); color: var(--bg); }
+/* A resolved discussion stays findable without colouring the page. */
+mark.vr-anchor.resolved { background: none; border-bottom: 1px dashed var(--vr-muted); }
+mark.vr-anchor.resolved.active {
+  background: color-mix(in srgb, var(--vr-mark) var(--vr-mark-idle), transparent);
+  border-bottom: 2px solid var(--vr-mark-rule);
+}
+
+/* The block a thread was anchored to, when its text no longer holds the quote. */
+.vr-commented {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 65%, transparent);
+  padding-left: 12px; border-radius: 2px; cursor: pointer;
+}
+.vr-commented.resolved { box-shadow: inset 3px 0 0 var(--vr-line-strong); }
+.vr-commented.active { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* ------------------------------------------------ The floating action ----- */
+.vr-selection-actions {
+  position: fixed; z-index: 90; display: flex; padding: 3px;
+  border: 1px solid var(--vr-line-strong); border-radius: 19px;
+  background: var(--surface); color: var(--text); box-shadow: var(--vr-pop-shadow);
+  font-family: var(--sans); font-size: 13px;
+  animation: vr-pop-in .14s ease-out;
+}
+.vr-selection-actions[hidden] { display: none; }
+@keyframes vr-pop-in { from { opacity: 0; transform: translateY(4px) scale(.98); } }
+.vr-selection-actions button {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 10px;
+  border: 0; border-radius: 999px; background: transparent; color: var(--text);
+  font: inherit; font-weight: 500; white-space: nowrap; cursor: pointer;
+}
+.vr-selection-actions button .vr-icon { color: var(--vr-muted); }
+.vr-selection-actions button:hover,
+.vr-selection-actions button:focus-visible { background: var(--vr-hover); }
+.vr-selection-actions button:hover .vr-icon,
+.vr-selection-actions button:focus-visible .vr-icon { color: var(--accent); }
+/* A finger needs a 44px target. */
+.vr-selection-actions.touch button { height: 40px; padding: 0 16px 0 14px; font-size: 15px; }
+
+/* --------------------------------------------------------- The panel ------ */
+/* The panel's box is a fixed column on the right; the frame may place it
+   otherwise, and these zero-specificity defaults give way to it. */
+:where(#vr-panel) {
+  position: fixed; top: var(--topbar-h, 0px); right: 0; bottom: 0; z-index: 70;
+  width: clamp(320px, var(--panel-w, 420px), max(320px, 100vw - 160px));
+}
+#vr-panel[hidden] { display: none; }
+.vr-panel {
+  display: flex; flex-direction: column; min-height: 0; padding: 0 14px;
+  border-left: 1px solid var(--vr-line); background: var(--bg); color: var(--text);
+  font-family: var(--sans);
+}
+.vr-panel:focus { outline: none; }
+
+/* The resize strip along the left edge, over the border line. */
+.vr-panel-resize {
+  position: absolute; top: 0; bottom: 0; left: -4px; z-index: 5; width: 8px;
+  cursor: col-resize; touch-action: none; outline: 0;
+}
+.vr-panel-resize::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px;
+  background: transparent; transition: background-color .15s ease;
+}
+.vr-panel-resize:hover::after { background: var(--vr-line-strong); }
+.vr-panel-resize:focus-visible::after,
+.vr-panel-resize.dragging::after { background: var(--vr-ring); }
+.vr-panel-resizing, .vr-panel-resizing * { cursor: col-resize !important; user-select: none; -webkit-user-select: none; }
+
+.vr-panel-toolbar {
+  display: flex; align-items: center; flex: none; gap: 4px; height: 48px;
+  border-bottom: 1px solid var(--vr-line);
+}
+.vr-panel-title {
+  margin: 0 12px 0 0; padding: 0; border: 0;
+  font-size: 14px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em; color: var(--text);
+}
+.vr-filter { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.vr-filter button {
+  display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0;
+  border: 0; background: transparent; color: var(--vr-faint);
+  font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.vr-filter button[hidden] { display: none; }
+.vr-filter button:hover:not([aria-pressed="true"]) { color: var(--text); }
+.vr-filter button[aria-pressed="true"] { color: var(--text); font-weight: 600; }
+.vr-filter-count { color: var(--vr-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.vr-filter-count:empty { display: none; }
+
+.vr-icon-button {
+  display: grid; place-items: center; flex: none; width: 30px; height: 30px; padding: 0;
+  border: 0; border-radius: 8px; background: transparent; color: var(--vr-muted); cursor: pointer;
+}
+.vr-icon-button:hover { background: var(--vr-hover); color: var(--text); }
+.vr-icon-button:focus-visible,
+.vr-panel button:focus-visible { outline: 2px solid var(--vr-ring); outline-offset: 1px; }
+.vr-icon-button:disabled { opacity: .45; cursor: default; }
+
+.vr-hint { margin: 0; color: var(--vr-muted); font-size: 12.5px; line-height: 1.6; }
+.vr-empty { padding: 4px 2px; }
+
+.vr-stream {
+  flex: 1; min-height: 90px; overflow: auto; overscroll-behavior: contain;
+  padding: 12px 0 16px; margin-bottom: 8px; border-bottom: 1px solid var(--vr-line);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ---------------------------------------------------------- Threads ------- */
+/* A card raised off the column: the fills are a step apart, so the border and
+   the shadow carry the separation in both themes. */
+.vr-thread {
+  position: relative; margin: 0 0 12px; padding: 12px;
+  border: 1px solid var(--vr-line-strong); border-radius: 10px;
+  background: var(--surface); box-shadow: var(--vr-input-shadow); font-size: 14px;
+}
+.vr-thread.active {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--vr-line-strong));
+  background: var(--vr-accent-soft);
+}
+
+.vr-thread-heading { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+/* The quoted passage: muted text on two lines at most, under the marker's rule. */
+.vr-quote {
+  flex: 1; min-width: 0; display: -webkit-box; margin: 0; padding: 0 0 0 8px;
+  border: 0; border-left: 2px solid var(--vr-mark-rule); background: none; border-radius: 0;
+  font-size: 12.5px; line-height: 1.5; font-style: normal; color: var(--vr-muted);
+  overflow: hidden; overflow-wrap: anywhere;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+}
+.vr-quote.whole { font-style: italic; color: var(--vr-faint); }
+.vr-thread.resolved .vr-quote { border-left-color: var(--vr-line-strong); }
+
+/* Resolve sits beside the quote and shows on hover, always on a touch screen. */
+.vr-thread-resolve { margin: -4px -4px 0 auto; opacity: 0; }
+.vr-thread:hover .vr-thread-resolve,
+.vr-thread:focus-within .vr-thread-resolve,
+.vr-thread-resolve:focus-visible { opacity: 1; }
+@media (hover: none) { .vr-thread-resolve { opacity: 1; } }
+.vr-thread-resolve:hover:not(:disabled) { color: var(--green); }
+
+.vr-thread-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 10px;
+  font-size: 11.5px; color: var(--vr-faint);
+}
+.vr-tid { font-family: var(--mono); font-size: 11px; }
+.vr-tag { font-weight: 600; }
+.vr-tag.human { color: var(--accent); }
+.vr-tag.agent { color: var(--teal); }
+.vr-tag.moved { color: var(--amber); }
+.vr-section { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 120px; }
+
+.vr-author { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--vr-muted); min-height: 24px; }
+.vr-avatar {
+  display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px;
+  border-radius: 999px; background: var(--vr-accent-soft); color: var(--accent);
+  font-size: 9px; font-weight: 600; letter-spacing: .02em;
+}
+.vr-avatar .vr-icon { width: 13px; height: 13px; }
+/* An agent's message reads as a machine's at a glance: a solid robot avatar. */
+.vr-avatar.agent { background: var(--accent); color: var(--surface); }
+.vr-name { color: var(--text); font-weight: 500; }
+.vr-edited { color: var(--vr-faint); font-size: 11.5px; }
+.vr-author time { margin-left: auto; white-space: nowrap; }
+.vr-message-actions { width: 26px; height: 26px; margin-right: -4px; }
+.vr-message-actions[aria-expanded="true"] { background: var(--vr-hover); color: var(--text); }
+
+.vr-body { margin: 6px 0 0; color: var(--text); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.vr-body.literal { white-space: pre-wrap; }
+.vr-body a { color: var(--accent); }
+.vr-body code { font-family: var(--mono); font-size: .86em; background: var(--code-bg); padding: 1px 4px; border-radius: 4px; }
+.vr-body.markdown > :first-child { margin-top: 0; }
+.vr-body.markdown > :last-child { margin-bottom: 0; }
+.vr-body.markdown p { margin: 0 0 10px; }
+.vr-body.markdown :is(ul, ol) { margin: 6px 0 10px; padding-left: 20px; }
+.vr-body.markdown li { margin: 4px 0; }
+.vr-body.markdown li::marker { color: var(--vr-muted); }
+.vr-body.markdown :is(h3, h4, h5, h6) { margin: 12px 0 4px; font-size: 14px; line-height: 1.4; }
+.vr-body.markdown pre {
+  margin: 10px 0; padding: 8px 10px; overflow-x: auto; border-radius: 6px;
+  background: var(--code-bg); font-size: 12px; line-height: 1.6;
+}
+.vr-body.markdown pre code { background: none; padding: 0; font-size: inherit; }
+.vr-body.markdown blockquote {
+  margin: 10px 0; padding: 0 0 0 10px; border-left: 2px solid var(--vr-line-strong); color: var(--vr-muted);
+}
+
+/* Replies share the first message's left edge; a rule is all that divides them. */
+.vr-message + .vr-message { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--vr-line); }
+/* The tint sets an agent's message apart, so it needs no rule beside it. */
+.vr-message.agent,
+.vr-message + .vr-message.agent {
+  padding: 8px 10px 10px; border-top: 0; border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+.vr-thread.active .vr-message.agent { background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+.vr-message.agent + .vr-message { border-top: 0; }
+
+.vr-thread-actions { display: flex; margin-top: 10px; }
+.vr-thread-reply {
+  height: 28px; padding: 0 8px; margin-left: -8px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--accent); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.vr-thread-reply:hover { background: var(--vr-accent-soft); }
+.vr-thread.replying .vr-thread-reply { visibility: hidden; }
+
+/* A rewrite in place. */
+.vr-edit { margin-top: 6px; }
+.vr-edit textarea {
+  display: block; width: 100%; min-height: 72px; resize: vertical; padding: 8px 10px;
+  border: 1px solid var(--vr-ring); border-radius: 8px; background: var(--surface); color: var(--text);
+  font: inherit; font-size: 14px; line-height: 1.55; outline: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--vr-ring) 25%, transparent);
+}
+.vr-edit-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+.vr-primary, .vr-quiet {
+  height: 32px; padding: 0 12px; border-radius: 8px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.vr-primary { border: 0; background: var(--accent); color: #fff; }
+.vr-primary:hover:not(:disabled) { background: var(--accent-strong); }
+:root[data-resolved-theme="dark"] .vr-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 85%, var(--text)); }
+.vr-primary:disabled { opacity: .45; cursor: default; }
+.vr-primary[hidden] { display: none; }
+.vr-quiet { border: 1px solid var(--vr-line-strong); background: transparent; color: var(--text); font-weight: 500; }
+.vr-quiet:hover { background: var(--vr-hover); }
+
+/* -------------------------------------------------------- Message menu ---- */
+.vr-menu {
+  position: fixed; z-index: 1000; min-width: 190px; padding: 6px;
+  border: 1px solid var(--vr-line-strong); border-radius: 10px;
+  background: var(--surface); color: var(--text); box-shadow: var(--vr-pop-shadow);
+  font-family: var(--sans);
+}
+.vr-menu button {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 34px; padding: 0 8px;
+  border: 0; border-radius: 6px; background: transparent; color: inherit;
+  font: inherit; font-size: 13.5px; text-align: left; cursor: pointer;
+}
+.vr-menu button .vr-icon { color: var(--vr-muted); }
+.vr-menu button:hover, .vr-menu button:focus-visible { background: var(--vr-hover); outline: 0; }
+.vr-menu .danger, .vr-menu .danger .vr-icon { color: var(--rose); }
+.vr-menu .danger:hover, .vr-menu .danger:focus-visible { background: color-mix(in srgb, var(--rose) 12%, transparent); }
+
+/* ----------------------------------------------------------- Composer ----- */
+/* Aimed at nothing, the composer folds to its hint; a passage or a reply
+   opens its field. Offline, it is the notice saying how to write. */
+.vr-composer {
+  position: relative; flex: none; margin: 0 0 12px; padding: 8px;
+  border: 1px solid var(--vr-line-strong); border-radius: 12px;
+  background: var(--surface); box-shadow: var(--vr-input-shadow);
+}
+.vr-composer.idle, .vr-composer.offline { padding: 0; border-color: transparent; background: transparent; box-shadow: none; }
+.vr-composer.idle .vr-composer-field, .vr-composer.offline .vr-composer-field,
+.vr-composer.offline .vr-composer-controls { display: none; }
+.vr-composer:not(.idle):not(.offline):focus-within {
+  border-color: var(--vr-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--vr-ring) 25%, transparent);
+}
+.vr-composer textarea {
+  display: block; width: 100%; min-height: 56px; max-height: 200px; padding: 4px 8px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--text);
+  font: inherit; font-size: 14px; line-height: 1.6; resize: none; outline: 0;
+}
+.vr-composer textarea::placeholder { color: var(--vr-faint); }
+.vr-composer-controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; }
+.vr-composer-controls .vr-hint { flex: 1; min-width: 0; }
+.vr-composer-controls .vr-hint[hidden] { display: none; }
+.vr-composer-controls .vr-primary { margin-left: auto; }
+
+/* The armed target: the passage to comment on, or the thread replied to. */
+.vr-chip {
+  display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; padding: 8px;
+  border-left: 2px solid var(--accent); border-radius: 6px; background: var(--vr-accent-soft);
+  font-size: 12.5px; line-height: 1.55;
+}
+.vr-chip[hidden] { display: none; }
+.vr-chip.reply { border-left-color: var(--vr-line-strong); background: var(--bg); }
+.vr-chip-text { flex: 1; min-width: 0; max-height: 90px; overflow: auto; overflow-wrap: anywhere; }
+.vr-chip small { display: block; margin-bottom: 4px; color: var(--vr-muted); font-size: 11px; font-weight: 500; }
+.vr-chip .vr-icon-button { width: 24px; height: 24px; margin: -2px -2px 0 0; }
+
+.vr-offline {
+  font-size: 12.5px; color: var(--vr-muted); background: var(--code-bg);
+  border-radius: 8px; padding: 9px 11px; line-height: 1.55;
+}
+.vr-offline[hidden] { display: none; }
+.vr-offline code { font-family: var(--mono); font-size: 11.5px; }
+
+/* ----------------------------------------------------------- On a phone --- */
+/* The panel spans the screen, sized on the visual viewport so the composer
+   stays above the browser toolbar and the virtual keyboard. */
+@media (max-width: 700px) {
+  :where(#vr-panel) {
+    top: var(--vr-view-top, 0px); left: 0; right: 0; bottom: var(--vr-view-lift, 0px);
+    width: auto; height: auto; max-height: var(--vr-view-h, 100dvh);
+  }
+  .vr-panel { border-left: 0; padding-bottom: env(safe-area-inset-bottom); }
+  .vr-panel-resize { display: none; }
+  .vr-panel-toolbar { height: 52px; }
   /* 44px is the smallest target a finger hits reliably. */
-  .vr-menu-btn{ min-width:44px; min-height:44px; font-size:18px; }
-  .vr-menu-items button{ min-height:44px; font-size:14.5px; padding:0 12px; display:flex; align-items:center; }
-  .vr-actions button{ min-height:44px; padding:0 14px; font-size:13.5px; }
-  .vr-composer-row button:not(.vr-send){ min-height:44px; font-size:13.5px; }
-  .vr-send{ min-height:44px; font-size:15px; padding:0 18px; }
+  .vr-icon-button { width: 44px; height: 44px; }
+  .vr-panel-close { margin-right: -8px; }
+  .vr-message-actions { width: 40px; height: 40px; margin: -8px -10px -8px 0; }
+  .vr-thread-resolve { margin: -10px -10px 0 auto; }
+  .vr-chip .vr-icon-button { width: 40px; height: 40px; margin: -10px -10px -10px 0; }
+  .vr-filter button, .vr-thread-reply { min-height: 44px; font-size: 14px; }
+  .vr-primary, .vr-quiet { height: 44px; font-size: 15px; padding: 0 18px; }
+  .vr-menu button { min-height: 44px; font-size: 15px; }
   /* Safari zooms the page on focus when a field is under 16px. */
-  .vr-composer textarea{ font-size:16px; }
-  /* No ⌘⏎ on a phone. */
-  .vr-composer-row .vr-hint{ display:none; }
-  #vr-bubble{ font-size:15px; padding:12px 20px; }
+  .vr-composer textarea, .vr-edit textarea { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vr-selection-actions { animation: none; }
+  .vr-panel-resize::after { transition: none; }
+}
+
+@media print {
+  #vr-panel, .vr-selection-actions, .vr-menu { display: none !important; }
+  mark.vr-anchor { background: none; border: 0; }
+  .vr-commented { box-shadow: none; padding-left: 0; }
 }
