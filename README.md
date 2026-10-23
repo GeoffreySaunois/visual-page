@@ -69,7 +69,7 @@ src/visualreport/
     converter.py      the markdown converter and its extensions
     fences/           the dialect's fences (figures, data, code, layout)
     page.py           template + style/script partials ──► the final HTML
-    controls.py       which controls the sidebar carries
+    controls.py       which controls the top bar's toolbar carries
     libraries.py      the pinned CDN libs, included only when used
     images.py lints.py
   iteration/        what changed since the previous version of this document

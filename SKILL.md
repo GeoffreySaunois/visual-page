@@ -92,8 +92,9 @@ the body of the reasoning.
 
 **Author markdown, not HTML.** The page is written as a `.md` source file (front matter
 + the dialect below) and compiled by `visual-report render` into a self-contained HTML
-page — sidebar table of contents with scroll-spy, reading-progress bar, light/dark
-theme toggle, charte boxes, build-time Pygments highlighting, and pinned CDN tags
+page — Gym Lab's reader frame (a collapsible sidebar with a numbered table of
+contents that follows the reading, a top bar of icon buttons, Lab's themes: system /
+light / dark × navy / violet / grey palettes), charte boxes, build-time Pygments highlighting, and pinned CDN tags
 injected **only** for the features the page actually uses (MathJax / Chart.js /
 Mermaid). Writing markdown keeps the register in "document" mode (dense, developed
 prose) instead of "landing page" mode, and removes the lossy spec-to-sub-agent hop:
@@ -288,7 +289,7 @@ Every page also exists on paper. One print stylesheet (`templates/styles/print.c
 decides what that looks like, and the three ways of getting a PDF all go through
 it, so they produce the same document:
 
-- **The `PDF` button** in the sidebar's control strip — it opens the browser's
+- **The PDF button** (download icon) in the top bar's toolbar — it opens the browser's
   print dialog, where *Enregistrer au format PDF* does the rest. It works on a
   served page and on an archived file opened by double-click alike: no server,
   nothing installed.
@@ -311,7 +312,7 @@ and any other renderer would print them empty.
 
 **What paper does to a page.** The stylesheet forces the light palette whatever
 theme the reader is in, drops everything that exists only to be clicked (the
-sidebar, the control strip, the comment rail and its bubble, the filmstrip's
+sidebar, the top bar, the comment rail and its bubble, the filmstrip's
 arrows), and keeps the small blocks whole across a page break. What a gesture
 would have revealed is opened for the print and put back after: a collapsed
 `???` annex is expanded, every tab panel is stacked under its own tab's title,
@@ -353,14 +354,17 @@ review, a recap is re-rendered after new commits.
   `▲ N changements` header and one line per change, each with an inline badge
   (`modifié` / `nouveau` / `retiré`) and a link to the nearest heading of the
   changed block.
-- **In-page controls** (top of the sidebar):
-  - **Diff on/off** toggle — *on* reviews the highlighted changes + changelog,
-    *off* shows the clean final document. Persisted in `localStorage` (`vr-diff`),
-    default *on*. The button only appears when a diff was computed.
-  - **3-state theme** toggle — système (◐) → clair (☀) → sombre (☾), cycling and
-    persisted (`vr-theme`).
-  - **← Index** — back to the gallery. Always present, even with no diff.
-  - **Commentaires N** — opens the comment rail (see below); always present.
+- **In-page controls** (the top bar's toolbar, icon buttons labelled by tooltip):
+  - **Diff** toggle (file-diff icon) — pressed reviews the highlighted changes +
+    changelog, released shows the clean final document. Persisted in
+    `localStorage` (`vr-diff`), default *on*. Only present when a diff was computed.
+  - **Commentaires** (bubble icon, open-thread count as a badge, shortcut `C`) —
+    opens the comment panel (see below); always present.
+  - **PDF** (download icon) and **Apparence** — the appearance menu: thème
+    Système / Clair / Sombre and palette sombre Marine / Violet / Gris, persisted
+    per viewer (`vr-theme`, `vr-palette`).
+  - **Galerie** — back to the gallery, from the sidebar's top row (or the rail
+    when the sidebar is collapsed) and from the breadcrumb.
 
 Matching is `difflib` over the source blocks (a pragmatic top-level splitter that
 keeps fences and callouts whole); a changed block pairs as *modified* when it stays
@@ -433,8 +437,7 @@ dependency is added to the package, the tooling lives in the session. Drive a
    cache-buster (`?v=2`) — Chrome otherwise replays the previous file and you
    review the old script. Re-`browser_resize` after any navigation hiccup: a
    reset viewport silently puts you back on the desktop layout.
-2. The sidebar is off-screen on a phone, so the panel opens in two taps: click
-   `.menu-btn`, then `#comments-toggle`.
+2. The panel opens from the top bar on a phone too: click `#comments-toggle`.
 3. What to look at — a thread is opened by a **selection only**: select a passage
    and dispatch a `mouseup`, the `Commenter` bubble shows, and the draft card
    carries the quoted passage. Send it, reload, and the thread is still there with

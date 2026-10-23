@@ -32,7 +32,7 @@ from .document import (
     split_blocks,
 )
 from .document.blocks import Block
-from .document.controls import side_controls
+from .document.controls import toolbar
 from .document.frontmatter import ReportMeta
 from .iteration import Iteration, review
 from .paths import Archive, document_id
@@ -96,7 +96,9 @@ def render(request: RenderRequest) -> RenderOutcome:
     store = comments.store_for(request.archive, identity)
     rehomed = rehome_threads(store, advances, blocks)
 
-    decorators = [address_blocks] if iteration is None else [iteration.decorator, address_blocks]
+    decorators = (
+        [address_blocks] if iteration is None else [iteration.decorator, address_blocks]
+    )
     assets = PageAssets()
     converter = build_converter(assets, include_toc=True)
     html_body = converter.convert(compose(blocks, decorators))
@@ -109,9 +111,8 @@ def render(request: RenderRequest) -> RenderOutcome:
         PageContent(
             document_id=identity,
             body=html_body,
-            toc_tokens=converter.toc_tokens,
             changelog="" if iteration is None else iteration.changelog_html,
-            side_controls=side_controls(has_iteration=iteration is not None),
+            toolbar=toolbar(has_iteration=iteration is not None),
             comments_bootstrap=comments.report_view(store.read(), store.revision),
             assets=assets,
         ),
@@ -172,7 +173,9 @@ def resolve_iteration(
     return review(previous, blocks)
 
 
-def previous_source(request: RenderRequest, identity: str, page_path: Path) -> Path | None:
+def previous_source(
+    request: RenderRequest, identity: str, page_path: Path
+) -> Path | None:
     """The version this render compares against: the one last rendered.
 
     Falls back to the newest dated source of the document — how the archive was
@@ -186,7 +189,9 @@ def previous_source(request: RenderRequest, identity: str, page_path: Path) -> P
         return None
     target = request.archive.source_of(page_path)
     candidates = [
-        candidate for candidate in request.archive.sources_of(identity) if candidate != target
+        candidate
+        for candidate in request.archive.sources_of(identity)
+        if candidate != target
     ]
     return candidates[-1] if candidates else None
 

@@ -1,43 +1,28 @@
-/* The document's own behavior: theming, the iteration toggle, reading progress,
-   the mobile drawer, TOC scroll-spy and sortable tables. No dependencies. */
+/* The document's own behavior: the iteration toggle, the PDF export and its
+   print hooks, sortable tables and filmstrips. The frame around the document
+   (appearance, sidebar, table of contents, tooltips) has its own scripts. */
 (function () {
   "use strict";
 
-  /* --- Theme toggle: system → light → dark → system, persisted ------------- */
   var root = document.documentElement;
-  var toggle = document.getElementById("theme-toggle");
-  function applyThemeGlyph() {
-    var t = root.getAttribute("data-theme") || "auto";
-    var glyph = t === "light" ? "☀" : t === "dark" ? "☾" : "◐";
-    var label = t === "light" ? "clair" : t === "dark" ? "sombre" : "système";
-    if (toggle) { toggle.textContent = glyph; toggle.title = "Thème : " + label + " (cliquer pour changer)"; }
-  }
-  applyThemeGlyph();
-  if (toggle) toggle.addEventListener("click", function () {
-    var current = root.getAttribute("data-theme") || "auto";
-    var next = current === "auto" ? "light" : current === "light" ? "dark" : "auto";
-    root.setAttribute("data-theme", next);
-    localStorage.setItem("vr-theme", next);
-    applyThemeGlyph();
-    document.dispatchEvent(new CustomEvent("vr-themechange"));
-  });
 
   /* --- Diff show/hide: "on" reviews changes, "off" shows the final doc ----- */
   var diffToggle = document.getElementById("diff-toggle");
-  function applyDiffGlyph() {
-    var on = root.getAttribute("data-diff") !== "off";
+  function applyDiffState() {
     if (!diffToggle) return;
+    var on = root.getAttribute("data-diff") !== "off";
     diffToggle.setAttribute("aria-pressed", on ? "true" : "false");
-    diffToggle.innerHTML = on ? "Diff <b>on</b>" : "Diff <b>off</b>";
-    diffToggle.title = on ? "Changements affichés — cliquer pour la version finale"
-                          : "Version finale — cliquer pour revoir les changements";
+    diffToggle.setAttribute("data-tooltip", on
+      ? "Changements affichés — cliquer pour la version finale"
+      : "Version finale — cliquer pour revoir les changements");
   }
-  applyDiffGlyph();
+  applyDiffState();
   if (diffToggle) diffToggle.addEventListener("click", function () {
     var on = root.getAttribute("data-diff") !== "off";
     root.setAttribute("data-diff", on ? "off" : "on");
-    localStorage.setItem("vr-diff", on ? "off" : "on");
-    applyDiffGlyph();
+    try { localStorage.setItem("vr-diff", on ? "off" : "on"); }
+    catch (error) { /* the choice still applies to this page */ }
+    applyDiffState();
   });
 
   /* --- PDF export: the browser's print dialog over the print stylesheet ---- */
@@ -83,50 +68,6 @@
       title.remove();
     });
   }
-
-  /* --- Reading progress bar ------------------------------------------------ */
-  var bar = document.getElementById("progress");
-  function updateProgress() {
-    var max = root.scrollHeight - root.clientHeight;
-    if (bar) bar.style.width = (max > 0 ? (root.scrollTop / max) * 100 : 0) + "%";
-  }
-  window.addEventListener("scroll", updateProgress, { passive: true });
-
-  /* --- Mobile drawer ------------------------------------------------------- */
-  var sidebar = document.querySelector(".sidebar");
-  var menuButton = document.querySelector(".menu-btn");
-  if (menuButton && sidebar) menuButton.addEventListener("click", function () {
-    sidebar.classList.toggle("open");
-  });
-  document.querySelectorAll(".sidebar nav a").forEach(function (link) {
-    link.addEventListener("click", function () { if (sidebar) sidebar.classList.remove("open"); });
-  });
-
-  /* --- TOC scroll-spy ------------------------------------------------------ */
-  var tocLinks = Array.prototype.slice.call(document.querySelectorAll("#toc a"));
-  var linkById = {};
-  tocLinks.forEach(function (link) {
-    linkById[decodeURIComponent(link.getAttribute("href")).slice(1)] = link;
-  });
-  var headings = Array.prototype.filter.call(
-    document.querySelectorAll("main h2[id], main h3[id]"),
-    function (heading) { return linkById[heading.id]; }
-  );
-  function setActive(id) {
-    tocLinks.forEach(function (link) { link.classList.remove("active"); });
-    if (linkById[id]) linkById[id].classList.add("active");
-  }
-  function spy() {
-    var line = 120; /* px from the viewport top counted as "current" */
-    var current = null;
-    for (var i = 0; i < headings.length; i++) {
-      if (headings[i].getBoundingClientRect().top <= line) current = headings[i].id;
-      else break;
-    }
-    if (current) setActive(current);
-    else if (headings.length) setActive(headings[0].id);
-  }
-  window.addEventListener("scroll", spy, { passive: true });
 
   /* --- Sortable tables ----------------------------------------------------- */
   /* Diff tables are layout components, not data tables: no sorting, no wrap. */
@@ -181,6 +122,4 @@
     strip.addEventListener("mouseenter", function () { strip.focus({ preventScroll: true }); });
   });
 
-  document.addEventListener("DOMContentLoaded", function () { updateProgress(); spy(); });
-  updateProgress(); spy();
 })();
