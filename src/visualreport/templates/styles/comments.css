@@ -6,10 +6,13 @@
    while `html.vr-comments-open` is set, by `--panel-w`.
 
    Every colour derives from the charte's base tokens, except the marker yellow,
-   which is a semantic highlight with its own light and dark steps.
+   which is a semantic highlight with its own light and dark steps. The derived
+   shades are declared again on the reading column, which keeps the navy
+   document canvas under every dark palette (charte.css): a figure marker reads
+   the document's colours, the panel the chrome's.
    =========================================================================== */
 
-:root {
+:root, .reading {
   --vr-line:         var(--border);
   --vr-line-strong:  color-mix(in srgb, var(--text) 14%, var(--border));
   --vr-muted:        var(--text-soft);
@@ -85,8 +88,8 @@ mark.vr-anchor.resolved.active {
 
 /* A commented figure (a thread on its whole block): the rule, an outline that
    lights up when its thread is active, and a marker in the left gutter. */
-.vr-commented.vr-figure { position: relative; cursor: auto; }
-.vr-commented.vr-figure.active {
+.vr-commented-figure { position: relative; cursor: auto; }
+.vr-commented-figure.active {
   outline: 2px solid color-mix(in srgb, var(--vr-mark) 70%, transparent);
   outline-offset: 4px; border-radius: 6px;
 }

@@ -1193,8 +1193,13 @@
   var Highlights = (function () {
     var MARK = "vr-anchor";
     var BLOCK = "vr-commented";
-    /* What a click on a commented block must leave to its own handler. */
-    var FIGURE_SURFACE = "a, button, input, textarea, summary, img, canvas, svg, .mermaid, th";
+    /* A block commented as a whole figure; distinct from figure-actions.js's
+       `vr-figure`, which marks every figure and must survive a repaint. */
+    var FIGURE = "vr-commented-figure";
+    /* What a click on a commented block must leave to its own handler. A
+       table's width grip is there because the click that ends its drag lands
+       on it. */
+    var FIGURE_SURFACE = "a, button, input, textarea, summary, img, canvas, svg, .mermaid, th, .table-edge";
 
     function paint() {
       clear();
@@ -1274,7 +1279,7 @@
        which steps through them. */
     function markFigure(block, thread) {
       flagBlock(block, thread);
-      block.classList.add("vr-figure");
+      block.classList.add(FIGURE);
       var marker = block.querySelector(":scope > .vr-figure-marker");
       if (!marker) {
         marker = el("button", "vr-figure-marker");
@@ -1298,7 +1303,7 @@
 
     function clear() {
       document.querySelectorAll(".vr-figure-marker").forEach(function (marker) { marker.remove(); });
-      document.querySelectorAll(".vr-figure").forEach(function (block) { block.classList.remove("vr-figure"); });
+      document.querySelectorAll("." + FIGURE).forEach(function (block) { block.classList.remove(FIGURE); });
       document.querySelectorAll("mark." + MARK).forEach(function (mark) {
         var parent = mark.parentNode;
         while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);

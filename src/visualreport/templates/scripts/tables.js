@@ -525,7 +525,35 @@
     const ids = tableIds(found);
     const tables = found.map((t, i) => new DataTable(t, ids[i], store));
     tables.forEach(t => { const layout = savedLayout(t); if (layout) t.apply(layout); });
-    addEventListener('resize', () => tables.forEach(t => t.render()));
+    followRoom(tables);
+  };
+
+  /* A table's measure and the margins it may widen into change without the
+     window resizing: the comments panel opening, closing or being dragged
+     narrows the reading area, the sidebar collapses, a commented block gains
+     its left rule. Every table renders again whenever the reading area or a
+     table's own container changes width. */
+  const followRoom = tables => {
+    if (!tables.length) return;
+    if (typeof ResizeObserver !== 'function') {
+      addEventListener('resize', () => tables.forEach(t => t.render()));
+      return;
+    }
+    const widths = new Map();
+    let frame = 0;
+    const observer = new ResizeObserver(entries => {
+      const changed = entries.filter(e => {
+        const width = e.contentRect.width;
+        if (widths.get(e.target) === width) return false;
+        widths.set(e.target, width);
+        return true;
+      });
+      if (!changed.length || frame) return;
+      frame = requestAnimationFrame(() => { frame = 0; tables.forEach(t => t.render()); });
+    });
+    const area = document.querySelector('main')?.parentElement;
+    if (area) observer.observe(area);
+    new Set(tables.map(t => t.figure.parentElement)).forEach(parent => observer.observe(parent));
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();

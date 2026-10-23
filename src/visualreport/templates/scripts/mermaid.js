@@ -10,12 +10,14 @@
   var sources = nodes.map(function (node) { return node.textContent; });
 
   /* A token as a color Mermaid's parser reads: the browser resolves var() and
-     color-mix() on a probe, and one painted pixel gives it back as rgb(). */
+     color-mix() on a probe, and one painted pixel gives it back as rgb(). The
+     probe sits in the document, which keeps its own dark canvas under every
+     palette, so the figure matches the page around it, not the chrome. */
   var probe = document.createElement("span");
   var paint = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
   function color(name) {
     probe.style.color = "var(" + name + ")";
-    document.body.appendChild(probe);
+    (document.querySelector("main") || document.body).appendChild(probe);
     var resolved = getComputedStyle(probe).color;
     probe.remove();
     paint.clearRect(0, 0, 1, 1);

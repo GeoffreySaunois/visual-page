@@ -136,6 +136,11 @@ decorator, not rewriting the body again.
 - **Reading never needs the server.** Every page embeds its threads as JSON, so an
   archived file opened by double-click shows the whole exchange. Only *writing*
   needs the server.
+- **A palette dresses the chrome, never the document.** The dark palettes (navy,
+  violet, grey) recolour the sidebar, the top bar, the comments panel and the
+  menus; the reading column re-declares the navy tokens for itself (`charte.css`),
+  so every content block, the lightbox, and the colours charts and diagrams read
+  from a probe inside `main` stay on the document canvas, as in Lab.
 - **A comment is never dropped.** If the quoted words were rewritten it *drifts*;
   if the block disappeared it is *orphaned*. Both stay visible and say so.
 - **Two writers, one hosted store.** Browser and CLI mutations use authenticated

@@ -89,6 +89,9 @@ main details > summary {
   padding: 14px 0; list-style: none;
   color: var(--accent-strong);
   display: flex; align-items: center; gap: 8px;
+  /* The title is a flex item, which never shrinks below its longest word: a
+     file name in it would push the box past a phone's edge. */
+  overflow-wrap: anywhere;
 }
 main details > summary::before { content: "▸"; transition: transform .15s; color: var(--accent); }
 main details[open] > summary::before { transform: rotate(90deg); }

@@ -6,7 +6,9 @@
 
 /* The review overlay reads against the document's own palette: a change is
    marked by a rule and a quiet chip, never by a frame around the block. */
-:root{ --vr-add:var(--green); --vr-mod:var(--amber); --vr-rem:var(--rose); }
+/* Declared again on the reading column, which keeps its own dark canvas under
+   every palette (charte.css), so the colours derive from the document's. */
+:root, .reading{ --vr-add:var(--green); --vr-mod:var(--amber); --vr-rem:var(--rose); }
 
 ins.vr-ins{ text-decoration:none; background:color-mix(in srgb,var(--vr-add) 20%,transparent);
   box-shadow:inset 0 -2px 0 var(--vr-add); border-radius:3px; padding:0 2px; }

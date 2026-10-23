@@ -9,8 +9,11 @@
      data-theme           auto | light | dark       the reader's choice
      data-palette         navy | violet | grey      which dark canvas
      data-resolved-theme  light | dark              what is on screen
-   Light is the same on every palette. The dark blocks sit in `@media screen`,
-   so paper always prints the light tokens.
+   Light is the same on every palette. A palette dresses the chrome only (the
+   sidebar, the top bar, the comments panel, the menus): the reading column
+   keeps the navy document canvas under every dark palette, as Lab's report
+   document does in its own frame. The dark blocks sit in `@media screen`, so
+   paper always prints the light tokens.
 
    1.  Tokens — light
    2.  Tokens — dark, navy / violet / grey
@@ -78,8 +81,11 @@
 /* 2. Tokens — dark ======================================================== */
 
 @media screen {
-  /* Navy: the default dark canvas; the page is the darkest step. */
-  :root[data-resolved-theme="dark"] {
+  /* Navy: the default dark canvas; the page is the darkest step. It is also
+     the document's canvas under every palette, so the reading column
+     declares it again for itself. */
+  :root[data-resolved-theme="dark"],
+  :root[data-resolved-theme="dark"] .reading {
     color-scheme: dark;
     --page: #06062A;
     --panel: #01013D;
@@ -111,6 +117,22 @@
     --green:         #1CCD90;
     --rose:          #FD605B;
     --text:          #DFDBF3;
+  }
+
+  /* A token derived from another resolves where it is declared: the reading
+     column derives the charte's aliases again from its own navy values, and
+     paints its canvas, so no palette colour reaches the document. */
+  :root[data-resolved-theme="dark"] .reading {
+    --bg:         var(--page);
+    --surface:    var(--panel);
+    --text-soft:  var(--muted);
+    --border:     var(--line);
+    --code-bg:    var(--raised);
+    --row-alt:    var(--panel);
+    --selection:  color-mix(in srgb, var(--accent) 22%, transparent);
+    --shadow:     var(--shadow-raised);
+    --focus-ring: 0 0 0 2px var(--page), 0 0 0 4px var(--ring);
+    background: var(--bg);
   }
 
   /* Violet: swaap.xyz's electric canvas, white as the only accent. */
