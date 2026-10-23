@@ -216,6 +216,9 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
+/* The frame is pinned to the window: no rubber-band at the page's ends, which
+   would drag the sidebar and the top bar away and open a gap above them. */
+html, body { overscroll-behavior: none; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 body {
   margin: 0;
