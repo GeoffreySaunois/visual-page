@@ -1,0 +1,47 @@
+/* ----------------------------------------------------- Figure actions ----- */
+/* Comment and Show full size, a pair of icon buttons in the top-right corner of
+   a table, a diagram, a chart or an image (scripts/figure-actions.js). They fade
+   in while the figure is hovered or one of them focused, stay visible where
+   nothing hovers, and are left out on paper. A table's reset joins the pair. */
+.vr-figure { position: relative; }
+figure.table-frame { margin: 20px 0; }
+.media-image { position: relative; display: inline-block; max-width: 100%; line-height: 0; cursor: zoom-in; }
+.filmstrip-slide .media-image { display: block; }
+.vr-figure[data-figure="diagram"] .mermaid { cursor: zoom-in; }
+
+.figure-actions {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  display: flex; gap: 4px; line-height: 0;
+  opacity: 0; transition: opacity .15s;
+}
+.vr-figure[data-figure="diagram"] > .figure-actions,
+.vr-figure[data-figure="chart"] > .figure-actions { top: 12px; right: 12px; }
+.vr-figure:hover > .figure-actions, .figure-actions:focus-within { opacity: 1; }
+@media (hover: none) { .figure-actions { opacity: 1; } }
+
+.figure-action, .figure-actions .table-reset {
+  position: static; display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent); color: var(--text-soft);
+  box-shadow: 0 1px 3px color-mix(in srgb, black 12%, transparent);
+  cursor: pointer; font: inherit; opacity: 1;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.figure-actions .table-reset[hidden] { display: none; }
+.figure-action:hover, .figure-actions .table-reset:hover {
+  color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.figure-action:focus-visible, .figure-actions .table-reset:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.figure-action svg, .figure-actions .table-reset svg {
+  width: 16px; height: 16px; fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+@media print { .figure-actions { display: none !important; } }
+/* On a table the pair sits over the header row: the last header cell keeps the
+   room for it, so its label (a sort control) never lies under a button. */
+figure.data-table thead th:last-child, figure.table-frame thead th:last-child { padding-right: 76px; }
+figure.data-table:has(> .figure-actions .table-reset:not([hidden])) thead th:last-child { padding-right: 108px; }
+@media print {
+  figure.data-table thead th:last-child, figure.table-frame thead th:last-child,
+  figure.data-table:has(> .figure-actions .table-reset:not([hidden])) thead th:last-child { padding-right: 14px; }
+}

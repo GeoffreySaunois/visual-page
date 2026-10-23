@@ -67,6 +67,8 @@ src/visualreport/
     composition.py    rebuilding a body through a chain of per-block decorators
     anchors.py        decorator: give every block a DOM address
     converter.py      the markdown converter and its extensions
+    lists.py          lists written right under a sentence, as CommonMark reads them
+    math.py           the TeX it typesets, told apart from prices written with `$`
     fences/           the dialect's fences (figures, data, code, layout)
     page.py           template + style/script partials ──► the final HTML
     controls.py       which controls the top bar's toolbar carries
@@ -74,6 +76,7 @@ src/visualreport/
     images.py lints.py
   iteration/        what changed since the previous version of this document
     matching.py       block alignment (also used to re-home comments)
+    edits.py          bounded Myers edit scripts, so a huge block never stalls a diff
     annotate.py       decorator: box or word-diff a changed block
     changelog.py review.py
   comments/         threads on a passage

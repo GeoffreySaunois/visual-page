@@ -69,38 +69,6 @@
     });
   }
 
-  /* --- Sortable tables ----------------------------------------------------- */
-  /* Diff tables are layout components, not data tables: no sorting, no wrap. */
-  document.querySelectorAll("main table:not(.diff-table)").forEach(function (table) {
-    var wrap = document.createElement("div");
-    wrap.className = "tablewrap";
-    table.parentNode.insertBefore(wrap, table);
-    wrap.appendChild(table);
-    /* Overflowing table → let it use the free margins before scrolling. */
-    if (table.scrollWidth > wrap.clientWidth + 1) wrap.classList.add("wide");
-    var headers = table.querySelectorAll("thead th");
-    headers.forEach(function (header, column) {
-      header.addEventListener("click", function () { sortBy(table, headers, header, column); });
-    });
-  });
-
-  function sortBy(table, headers, header, column) {
-    var body = table.querySelector("tbody");
-    if (!body) return;
-    var rows = Array.prototype.slice.call(body.querySelectorAll("tr"));
-    var ascending = !header.classList.contains("sorted-asc");
-    headers.forEach(function (other) { other.classList.remove("sorted-asc", "sorted-desc"); });
-    header.classList.add(ascending ? "sorted-asc" : "sorted-desc");
-    rows.sort(function (left, right) {
-      var a = (left.children[column] || {}).textContent || "";
-      var b = (right.children[column] || {}).textContent || "";
-      var na = parseFloat(a.replace(",", ".")), nb = parseFloat(b.replace(",", "."));
-      if (!isNaN(na) && !isNaN(nb)) return ascending ? na - nb : nb - na;
-      return ascending ? a.localeCompare(b, "fr") : b.localeCompare(a, "fr");
-    });
-    rows.forEach(function (row) { body.appendChild(row); });
-  }
-
   /* --- Filmstrip: arrow-key / click navigation through an image sequence --- */
   document.querySelectorAll(".filmstrip").forEach(function (strip) {
     var slides = Array.prototype.slice.call(strip.querySelectorAll(".filmstrip-slide"));

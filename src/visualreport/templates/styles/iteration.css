@@ -1,28 +1,27 @@
 /* ===========================================================================
    The iteration layer: what changed since the previous version of this document.
-   Bright, saturated palette — deliberately independent of the doc's muted charte
-   tones, so a review reads as an overlay rather than as content.
+   It borrows the document's own semantic colours so the review reads as an
+   annotation of the page, not as a second design competing with it.
    =========================================================================== */
 
-:root{ --vr-add:#10d15c; --vr-add-ink:#053f1b; --vr-mod:#ffa60a; --vr-mod-ink:#3a2500;
-  --vr-rem:#ff2d63; --vr-rem-ink:#42041a; }
-[data-theme="dark"]{ --vr-add:#2bec74; --vr-mod:#ffc03a; --vr-rem:#ff5c86; }
-@media (prefers-color-scheme: dark){ [data-theme="auto"]{ --vr-add:#2bec74; --vr-mod:#ffc03a; --vr-rem:#ff5c86; } }
+/* The review overlay reads against the document's own palette: a change is
+   marked by a rule and a quiet chip, never by a frame around the block. */
+:root{ --vr-add:var(--green); --vr-mod:var(--amber); --vr-rem:var(--rose); }
 
-ins.vr-ins{ text-decoration:none; background:color-mix(in srgb,var(--vr-add) 34%,transparent);
+ins.vr-ins{ text-decoration:none; background:color-mix(in srgb,var(--vr-add) 20%,transparent);
   box-shadow:inset 0 -2px 0 var(--vr-add); border-radius:3px; padding:0 2px; }
-del.vr-del{ background:color-mix(in srgb,var(--vr-rem) 28%,transparent); text-decoration:line-through;
+del.vr-del{ background:color-mix(in srgb,var(--vr-rem) 16%,transparent); text-decoration:line-through;
   text-decoration-color:var(--vr-rem); border-radius:3px; padding:0 2px; }
-.vr-chg{ position:relative; }
-.vr-chg.mod{ box-shadow:0 0 0 2px var(--vr-mod); }
-.vr-chg.add{ box-shadow:0 0 0 2px var(--vr-add); }
-.vr-chg.rem{ box-shadow:0 0 0 2px var(--vr-rem); opacity:.7; }
-.vr-badge{ position:absolute; top:-11px; right:14px; z-index:3; font-size:10px; font-weight:800;
-  text-transform:uppercase; letter-spacing:.04em; padding:2px 9px; border-radius:999px;
-  white-space:nowrap; box-shadow:0 1px 6px color-mix(in srgb,var(--text) 18%,transparent); }
-.vr-badge.mod{ background:var(--vr-mod); color:var(--vr-mod-ink); }
-.vr-badge.add{ background:var(--vr-add); color:var(--vr-add-ink); }
-.vr-badge.rem{ background:var(--vr-rem); color:var(--vr-rem-ink); }
+.vr-chg{ position:relative; padding-left:14px; }
+.vr-chg.mod{ box-shadow:inset 2px 0 0 var(--vr-mod); }
+.vr-chg.add{ box-shadow:inset 2px 0 0 var(--vr-add); }
+.vr-chg.rem{ box-shadow:inset 2px 0 0 var(--vr-rem); opacity:.7; }
+.vr-badge{ position:absolute; top:-9px; right:14px; z-index:3; font-size:9.5px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.06em; padding:1px 7px; border-radius:999px;
+  white-space:nowrap; background:var(--bg); border:1px solid currentColor; }
+.vr-badge.mod{ color:var(--vr-mod); }
+.vr-badge.add{ color:var(--vr-add); }
+.vr-badge.rem{ color:var(--vr-rem); }
 
 /* changelog band */
 .vr-changelog{ background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--accent);
@@ -35,9 +34,10 @@ del.vr-del{ background:color-mix(in srgb,var(--vr-rem) 28%,transparent); text-de
 .vr-changelog a:hover{ color:var(--accent); }
 .vr-badge-inline{ display:inline-block; font-size:10px; font-weight:800; text-transform:uppercase;
   letter-spacing:.03em; padding:1px 7px; border-radius:999px; margin-right:8px; vertical-align:middle; }
-.vr-badge-inline.mod{ background:var(--vr-mod); color:var(--vr-mod-ink);}
-.vr-badge-inline.add{ background:var(--vr-add); color:var(--vr-add-ink);}
-.vr-badge-inline.rem{ background:var(--vr-rem); color:var(--vr-rem-ink);}
+.vr-badge-inline{ border:1px solid currentColor; background:var(--bg); }
+.vr-badge-inline.mod{ color:var(--vr-mod); }
+.vr-badge-inline.add{ color:var(--vr-add); }
+.vr-badge-inline.rem{ color:var(--vr-rem); }
 
 /* side controls */
 .side-controls{ display:flex; gap:8px; margin:0 0 18px; flex-wrap:wrap; }
@@ -51,6 +51,6 @@ del.vr-del{ background:color-mix(in srgb,var(--vr-rem) 28%,transparent); text-de
 [data-diff="off"] ins.vr-ins{ background:none; box-shadow:none; padding:0; }
 [data-diff="off"] del.vr-del{ display:none; }
 [data-diff="off"] .vr-badge{ display:none; }
-[data-diff="off"] .vr-chg{ box-shadow:none; opacity:1; }
+[data-diff="off"] .vr-chg{ box-shadow:none; opacity:1; padding-left:0; }
 [data-diff="off"] .vr-chg.rem{ display:none; }
 [data-diff="off"] .vr-changelog{ display:none; }

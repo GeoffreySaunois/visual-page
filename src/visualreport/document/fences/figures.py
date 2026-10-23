@@ -18,6 +18,8 @@ def make_chart_formatter(assets: PageAssets):
             spec = json.loads(source)
         except json.JSONDecodeError as error:
             raise SourceError(f"invalid JSON in ```chart block: {error}") from error
+        if not isinstance(spec, dict) or not isinstance(spec.get("data"), dict):
+            raise SourceError("```chart configuration requires a data object")
         chart_id = assets.add_chart(spec)
         height = html.escape(options.get("height", "340"))
         parts = ['<figure class="fig-card">']

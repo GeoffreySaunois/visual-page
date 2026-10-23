@@ -55,3 +55,28 @@ def literal_list_markers(content: str) -> list[str]:
             f"4 spaces inside list items, blank line before the next item): …{excerpt!r}…"
         )
     return warnings
+
+
+LITERAL_FENCE_RE = re.compile(r"^(?:`{3,}|~{3,})\S*", re.MULTILINE)
+
+
+def literal_fence_markers(content: str) -> list[str]:
+    """Warn when a fence opener survives as literal text inside a paragraph.
+
+    A fence that never parsed — one that never closes, an unbalanced ``` earlier
+    in the source, a fence inside a tab or a list item indented by the wrong
+    amount — leaves its opening line as prose and its body as paragraphs or list
+    items, which the browser displays without complaining.
+    """
+    warnings = []
+    for paragraph in PARAGRAPH_RE.finditer(content):
+        hit = LITERAL_FENCE_RE.search(paragraph.group(1))
+        if not hit:
+            continue
+        excerpt = re.sub(r"<[^>]+>", "", paragraph.group(1)[hit.start() : hit.start() + 90]).strip()
+        warnings.append(
+            "literal fence marker inside a paragraph — a fence did not parse (look for a "
+            "missing closing ```, an unbalanced ``` above it, or a fence inside a tab / list "
+            f"item not indented 4 spaces): …{excerpt!r}…"
+        )
+    return warnings
