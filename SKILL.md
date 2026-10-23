@@ -158,7 +158,13 @@ with the explicit instruction that every paragraph is carried word-for-word.
    - **KPI band**: fenced ` ```kpi ` block with a YAML list of `{value, label, note?}`.
    - **Math**: `\(inline\)` and `$$display$$` — never bare `$` (dollar amounts stay
      literal; MathJax only processes the wrapped spans).
-   - **Tables**: markdown tables — rendered charte-styled and click-to-sort.
+   - **Tables**: markdown tables — charte-styled and interactive: columns sized to
+     their content, sort (click a header), resize, reorder (drag a header), widen into
+     the margins, reset; a reader's layout is remembered in their browser. Tables
+     with merged cells stay static.
+   - **Figures**: tables, diagrams, charts and images carry two actions in their
+     corner — Commenter (comments the whole block) and Afficher en grand (a lightbox;
+     a filmstrip browses on in it). Code blocks carry a Copy action.
    - **File maps**: fenced ` ```filetree ` block — YAML list of `{path, flag:
      added|modified|removed|renamed, note?}`, rendered as flagged A/M/D/R rows.
    - **Diffs**: fenced ` ```diff title="…" mode="unified|split" ` block. Unified

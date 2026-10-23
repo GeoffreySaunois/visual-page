@@ -1,14 +1,27 @@
-/* Chart.js instances: colored from the charte, rebuilt on every theme change. */
+/* Chart.js instances: colored from the charte, rebuilt whenever the page changes
+   theme or palette (`vr-theme-change`). */
 (function () {
   "use strict";
   var CONFIGS = {{CHART_CONFIGS}};
   var instances = [];
 
-  function cssVar(name) {
-    return getComputedStyle(document.body).getPropertyValue(name).trim();
+  /* A token as a color Chart.js's parser reads: the browser resolves var() and
+     color-mix() on a probe, and one painted pixel gives it back as rgb(). */
+  var probe = document.createElement("span");
+  var paint = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+  function color(name) {
+    probe.style.color = "var(" + name + ")";
+    document.body.appendChild(probe);
+    var resolved = getComputedStyle(probe).color;
+    probe.remove();
+    paint.clearRect(0, 0, 1, 1);
+    paint.fillStyle = resolved;
+    paint.fillRect(0, 0, 1, 1);
+    var p = paint.getImageData(0, 0, 1, 1).data;
+    return "rgb(" + p[0] + ", " + p[1] + ", " + p[2] + ")";
   }
   function palette() {
-    return ["--accent", "--teal", "--amber", "--blue", "--green", "--rose"].map(cssVar);
+    return ["--accent", "--teal", "--amber", "--blue", "--green", "--rose"].map(color);
   }
   function colorize(config) {
     var colors = palette();
@@ -22,8 +35,8 @@
     return copy;
   }
   function renderAll() {
-    Chart.defaults.color = cssVar("--text-soft");
-    Chart.defaults.borderColor = cssVar("--border");
+    Chart.defaults.color = color("--text-soft");
+    Chart.defaults.borderColor = color("--border");
     Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
     instances.forEach(function (chart) { chart.destroy(); });
     instances = CONFIGS.map(function (config, index) {
@@ -31,7 +44,7 @@
     });
   }
 
-  document.addEventListener("vr-themechange", renderAll);
+  document.addEventListener("vr-theme-change", renderAll);
   if (document.readyState !== "loading") renderAll();
   else document.addEventListener("DOMContentLoaded", renderAll);
 })();
