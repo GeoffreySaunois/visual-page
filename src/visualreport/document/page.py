@@ -32,6 +32,7 @@ STYLE_ORDER = (
     "figure-actions.css",
     "iteration.css",
     "comments.css",
+    "selection-actions.css",
     "print.css",
 )
 SCRIPT_ORDER = (
@@ -44,6 +45,7 @@ SCRIPT_ORDER = (
     "copy.js",
     "lightbox.js",
     "figure-actions.js",
+    "selection-actions.js",
     "comments.js",
     "paste.js",
 )

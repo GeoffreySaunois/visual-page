@@ -165,9 +165,9 @@ with the explicit instruction that every paragraph is carried word-for-word.
      with merged cells stay static.
    - **Figures**: tables, diagrams, charts and images carry two actions in their
      corner — Commenter and Afficher en grand (a lightbox; a filmstrip browses on in
-     it). Commenter opens a thread on the whole block: its quote is empty, the
-     figure gets a rule and an outline, and a marker in its left gutter reaches its
-     threads afterwards. Code blocks carry a Copy action.
+     it). Commenter opens the inline composer beside the button, for a thread on
+     the whole block: its quote is empty, the figure gets a rule and an outline,
+     and a marker in its left gutter reaches its threads afterwards. Code blocks carry a Copy action.
    - **File maps**: fenced ` ```filetree ` block — YAML list of `{path, flag:
      added|modified|removed|renamed, note?}`, rendered as flagged A/M/D/R rows.
    - **Diffs**: fenced ` ```diff title="…" mode="unified|split" ` block. Unified
@@ -320,7 +320,7 @@ and any other renderer would print them empty.
 
 **What paper does to a page.** The stylesheet forces the light palette whatever
 theme the reader is in, drops everything that exists only to be clicked (the
-sidebar, the top bar, the comments panel and the selection action, the figure
+sidebar, the top bar, the comments panel and the selection toolbar, the figure
 actions, the filmstrip's arrows), and keeps the small blocks whole across a page break. What a gesture
 would have revealed is opened for the print and put back after: a collapsed
 `???` annex is expanded, every tab panel is stacked under its own tab's title,
@@ -386,11 +386,18 @@ Hosted comments live in Firestore, independently of the pages, and survive every
 publication. Local `comments/<document>.json` files are migration backups or preview data. Every genre
 gets this: a plan is approved through its threads, a recap is challenged in them.
 
-**In the page.** Select any text → *Commenter* → the thread opens in the Comments
-panel on the right (on a wide screen it pushes the reading column aside, and its
-left edge resizes it) with the passage quoted and highlighted in the document. A
-figure's own *Commenter* action opens a thread on the whole block instead, with an
-empty quote. A thread holds an ordered
+**In the page.** Select any text → a small *Commenter* toolbar floats over it →
+choosing it turns the toolbar, in place, into a composer at the passage (Gym Lab's
+selection actions): the passage stays painted while it is written, the field grows
+with its text, Enter saves, Shift+Enter breaks the line (on a phone Enter breaks
+it and the ✓ button saves), Esc or × cancels, and a press elsewhere drops it only
+while it is empty. Saved, the thread becomes the active one, highlighted right
+there; the Comments panel does not open — its badge counts the thread, and an
+already open panel scrolls to its card. A figure's own *Commenter* action opens
+the same composer beside the button, for a thread on the whole block (empty
+quote). The Comments panel on the right (on a wide screen it pushes the reading
+column aside, and its left edge resizes it) lists the threads and holds the
+composer for **replies** (*Répondre* on a card). A thread holds an ordered
 exchange, is replied to and resolved (hidden from the default view, reopenable);
 each message carries a **⋮** menu to *rewrite* it (it is then marked `modifié`) or
 *delete* it — deleting the last message of a thread deletes the thread. Filters:
@@ -451,9 +458,10 @@ no dependency is added to the package, the tooling lives in the session. Drive a
    reset viewport silently puts you back on the desktop layout.
 2. The panel opens from the top bar on a phone too: click `#comments-toggle`.
 3. What to look at — a thread is opened by a **selection only**: select a passage
-   and dispatch a `mouseup`, the floating `Commenter` action shows, and the draft card
-   carries the quoted passage. Send it, reload, and the thread is still there with
-   its anchor and its `mark.vr-anchor` in the text. The panel foot holds the
+   and dispatch a `mouseup`, the floating `Commenter` toolbar shows; choose it and
+   the inline composer (`.vr-sa-composer`) opens at the passage, which stays
+   painted (`mark.vr-draft`). Save it (the ✓ button), reload, and the thread is
+   still there with its anchor and its `mark.vr-anchor` in the text. The panel foot holds the
    offline notice alone and is `hidden` while the server answers, so the sheet
    ends flush on its last card. Nothing overflows sideways:
    `document.documentElement.scrollWidth === clientWidth`.

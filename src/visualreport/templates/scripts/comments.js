@@ -1,10 +1,11 @@
 /* The comment layer: a Comments panel on the right of the reading column, a
-   floating « Commenter » action over a selected passage, and the highlights of
-   every commented passage in the document.
+   floating « Commenter » toolbar over a selected passage that turns into the
+   composer of a new thread right there (selection-actions.js draws it), and
+   the highlights of every commented passage in the document.
 
    Reading works everywhere: every page is rendered with its threads embedded, so
    a file opened by double-click still shows the whole exchange. Writing needs the
-   comment server — when the API does not answer, the composer says how to start
+   comment server — when the API does not answer, the panel says how to start
    it instead of pretending to save, and no passage is offered for commenting.
 
    Threads are anchored on a block index plus the quoted words (with the text
@@ -34,7 +35,7 @@
     filter: "open",       /* "open" | "resolved" */
     active: null,         /* the thread emphasised in the panel and the document */
     api: null,            /* base URL once the server answered, null when offline */
-    passage: null,        /* {anchor, label} armed in the composer for a new thread;
+    draft: null,          /* {anchor, label} the inline composer writes a new thread on;
                              `label` names a whole figure, null for a selection */
     replyTo: null,        /* the thread id the composer replies to */
     editing: null,        /* the comment being rewritten in place */
@@ -336,8 +337,9 @@
   /* ============================================================ Keyboard === */
   /* `C` toggles the panel unless a key is being typed or a modifier is held.
      Escape unwinds one layer at a time: an open menu, a rewrite in progress,
-     the composer's armed target (when its field is empty), a field with a draft
-     (put down, the draft kept), the floating action, and finally the panel. */
+     the inline composer (its own field cancels it), the reply target (when the
+     field is empty), a field with a draft (put down, the draft kept), the
+     floating toolbar, and finally the panel. */
   function bindKeyboard() {
     window.addEventListener("keydown", function (event) {
       if (event.defaultPrevented || event.isComposing || typeof event.key !== "string") return;
@@ -360,7 +362,7 @@
     }
     if (target === ui.field) {
       event.preventDefault();
-      if (!ui.field.value.trim() && (state.passage || state.replyTo)) Composer.disarm();
+      if (!ui.field.value.trim() && state.replyTo) Composer.disarm();
       ui.panel.focus();
       return;
     }
@@ -787,11 +789,11 @@
   })();
 
   /* ============================================================ Composer === */
-  /* The composer at the foot of the panel writes one of two things: a new
-     thread on the passage picked in the document, or a reply to the thread
-     armed with Répondre. Aimed at neither, its field folds away behind a hint.
-     Each target keeps its own draft while the page lives. Offline, it is the
-     notice saying how to write instead. */
+  /* The composer at the foot of the panel answers threads: Répondre on a card
+     aims it at that thread. A new thread is written inline, at its passage
+     (see Selection), so aimed at nothing the composer folds away behind a hint
+     saying so. Each thread keeps its own reply draft while the page lives.
+     Offline, it is the notice saying how to write instead. */
   var SUBMIT_LABEL = /Mac|iP(hone|ad|od)/.test(navigator.platform || "") ? "⌘↩" : "Ctrl+↩";
 
   var Composer = (function () {
@@ -800,9 +802,8 @@
 
     function build() {
       var form = el("form", "vr-composer idle");
-      form.setAttribute("aria-label", "Écrire un commentaire");
+      form.setAttribute("aria-label", "Répondre à un fil");
 
-      ui.passageChip = chip("Passage à commenter", "Retirer la cible", function () { disarm(); focusField(); });
       ui.replyChip = chip("Réponse à", "Annuler la réponse", function () { disarm(); focusField(); });
       ui.replyChip.classList.add("reply");
 
@@ -826,7 +827,6 @@
         + "Pour écrire : <code>visual-report serve</code> puis ouvre la page via "
         + "<code>http://127.0.0.1</code>.";
 
-      form.appendChild(ui.passageChip);
       form.appendChild(ui.replyChip);
       form.appendChild(fieldWrap);
       form.appendChild(bar);
@@ -851,26 +851,19 @@
     function controls() {
       var form = ui.composer;
       var online = Boolean(state.api);
-      var targeted = Boolean(state.passage || state.replyTo);
+      var replying = Boolean(state.replyTo);
       form.classList.toggle("offline", !online);
-      form.classList.toggle("idle", online && !targeted);
+      form.classList.toggle("idle", online && !replying);
       ui.offline.hidden = online;
-      ui.composerHint.hidden = !online || targeted;
-      ui.passageChip.hidden = !online || !state.passage;
-      ui.replyChip.hidden = !online || !state.replyTo;
-      if (state.passage) {
-        ui.passageChip.querySelector("small").textContent = state.passage.label ? "Figure à commenter" : "Passage à commenter";
-        ui.passageChip.querySelector(".vr-chip-quote").textContent = state.passage.label || state.passage.anchor.quote;
-      }
-      if (state.replyTo) ui.replyChip.querySelector(".vr-chip-quote").textContent = replyLabel(findThread(state.replyTo));
-      var label = state.replyTo ? "Répondre" : "Commenter";
-      ui.field.placeholder = state.replyTo ? "Répondre…"
-        : state.passage && state.passage.label ? "Commenter cette figure…" : "Commenter ce passage…";
+      ui.composerHint.hidden = !online || replying;
+      ui.replyChip.hidden = !online || !replying;
+      if (replying) ui.replyChip.querySelector(".vr-chip-quote").textContent = replyLabel(findThread(state.replyTo));
+      ui.field.placeholder = "Répondre…";
       ui.field.setAttribute("aria-label", ui.field.placeholder);
       ui.field.disabled = state.pending;
-      ui.submit.textContent = label;
-      ui.submit.title = label + " (" + SUBMIT_LABEL + ")";
-      ui.submit.hidden = !targeted;
+      ui.submit.textContent = "Répondre";
+      ui.submit.title = "Répondre (" + SUBMIT_LABEL + ")";
+      ui.submit.hidden = !replying;
       ui.submit.disabled = state.pending || !ui.field.value.trim();
     }
 
@@ -896,8 +889,7 @@
     }
 
     function retarget() {
-      var key = state.replyTo ? "reply:" + state.replyTo
-        : state.passage ? "passage:" + state.passage.anchor.block_index + ":" + state.passage.anchor.quote : null;
+      var key = state.replyTo || null;
       if (key === draftKey) return;
       if (draftKey) drafts[draftKey] = ui.field.value;
       draftKey = key;
@@ -907,21 +899,8 @@
     function saveDraft() { if (draftKey) drafts[draftKey] = ui.field.value; }
     function forgetDraft() { if (draftKey) delete drafts[draftKey]; }
 
-    /* `passage` is {anchor, label}: the anchor the API receives, and the figure's
-       label when the whole block is commented. */
-    function arm(passage) {
-      state.passage = passage;
-      state.replyTo = null;
-      state.filter = "open";
-      retarget();
-      Panel.show(true);
-      paint();
-      focusField();
-    }
-
     function replyTo(threadId) {
       state.replyTo = threadId;
-      state.passage = null;
       retarget();
       Panel.show(true);
       activate(threadId, { scrollDocument: true });
@@ -930,7 +909,6 @@
     }
 
     function disarm() {
-      state.passage = null;
       state.replyTo = null;
       retarget();
       paint();
@@ -944,18 +922,14 @@
 
     function submit() {
       var body = ui.field.value.trim();
-      if (state.pending || !body || !(state.passage || state.replyTo)) return;
-      var opening = !state.replyTo;
-      var known = threadIds();
-      var write = opening ? Api.openThread(state.passage.anchor, body) : Api.reply(state.replyTo, body);
+      if (state.pending || !body || !state.replyTo) return;
       state.pending = true;
       controls();
-      write.then(function () {
+      Api.reply(state.replyTo, body).then(function () {
         forgetDraft();
         ui.field.value = "";
         state.pending = false;
         disarm();
-        if (opening) showCreated(known);
       }).catch(function (error) {
         state.pending = false;
         controls();
@@ -964,20 +938,7 @@
       });
     }
 
-    function threadIds() {
-      return state.threads.map(function (thread) { return thread.id; });
-    }
-
-    /* The server answers with every thread, not the one it created: the new
-       thread is the one that was not there before. It becomes the active one,
-       its card scrolled into the panel and its passage or figure emphasised in
-       the document, so the writer sees where the comment landed. */
-    function showCreated(known) {
-      var created = state.threads.filter(function (thread) { return known.indexOf(thread.id) < 0; });
-      if (created.length === 1) openThread(created[0].id);
-    }
-
-    return { build: build, refresh: refresh, arm: arm, replyTo: replyTo, disarm: disarm };
+    return { build: build, refresh: refresh, replyTo: replyTo, disarm: disarm };
   })();
 
   /* Command+Enter (Control+Enter off Apple keyboards) sends the field's form. */
@@ -1007,56 +968,63 @@
     field.setAttribute("inputmode", "text");
   }
 
-  /* ===================================================== Selection action === */
-  /* A passage selected in the document raises a floating « Commenter » pill;
-     choosing it arms the passage in the panel's composer.
+  /* ===================================================== Inline composer === */
+  /* A new thread is written where its passage is, not in the panel. A passage
+     selected in the document raises the floating toolbar of selection-actions.js
+     over it; its « Commenter » turns the toolbar, in place, into a composer for
+     the passage. A figure's own Commenter button opens the same composer beside
+     the button. While the composer is open its passage stays painted (a draft
+     mark, `state.draft`) and the composer follows it through scrolling. Saved,
+     the new thread becomes the active one, its passage emphasised right there;
+     the panel stays as it was, and its badge counts the thread.
 
-     Two input stories reach the same pill. A mouse drag ends on `mouseup`, and
+     Two input stories reach the toolbar. A mouse drag ends on `mouseup`, and
      the selection is final there. A finger has no such moment: iOS Safari builds
      and adjusts a selection through its own handles, which emit
      `selectionchange` and nothing else, so touch watches the selection itself
      and waits for it to stop moving.
 
-     The tap that follows is the delicate part. Pressing the pill collapses a
+     The tap that follows is the delicate part. Pressing the toolbar collapses a
      touch selection before the click is delivered, which is why the anchor is
-     captured when the pill appears rather than read back in the click handler,
-     and why a collapse right after a press on the pill is ignored. */
+     captured when the toolbar appears rather than read back in the click
+     handler, and why a collapse right after a press on it is ignored. */
   var Selection = (function () {
     var SETTLE_MS = 250;
     var TAP_GRACE_MS = 1200;
-    var EDGE = 8;
-    var pill = null;
-    var anchor = null;        /* the passage the pill would comment on */
+    var surface = null;
+    var offered = null;       /* the passage the toolbar would comment on */
+    var origin = null;        /* the figure button an open figure composer sits beside */
     var touchInput = false;   /* the last pointer on the page was a finger */
     var settleTimer = null;
-    var heldUntil = 0;        /* a press on the pill freezes selection handling */
+    var heldUntil = 0;        /* a press on the surface freezes selection handling */
 
-    function mount() {
-      if (pill) return;
-      pill = el("div", "vr-selection-actions");
-      pill.setAttribute("role", "toolbar");
-      pill.setAttribute("aria-label", "Texte sélectionné");
-      pill.hidden = true;
-      var action = el("button", "");
-      action.type = "button";
-      action.title = "Commenter ce passage";
-      action.innerHTML = icon("comments");
-      action.appendChild(el("span", "", "Commenter"));
-      /* A mouse press must not take the selection away before the action runs. */
-      action.addEventListener("mousedown", function (event) { event.preventDefault(); });
-      action.addEventListener("click", choose);
-      pill.appendChild(action);
-      document.body.appendChild(pill);
+    function actions() {
+      if (!surface) {
+        surface = window.vrSelectionActions({
+          choose: choose,
+          comment: save,
+          closed: closed,
+          dismissed: dismissed,
+          bounds: bounds
+        });
+      }
+      return surface;
     }
 
     function bind() {
-      document.addEventListener("pointerdown", notePointer, true);
+      document.addEventListener("pointerdown", pointerdown, true);
       document.addEventListener("mouseup", function (event) {
         if (outsideDocument(event.target)) return;
         setTimeout(consider, 0);
       });
       document.addEventListener("keyup", function (event) {
         if (event.shiftKey && !typing(event.target)) consider();
+      });
+      document.addEventListener("keydown", function (event) {
+        /* Tab after a keyboard selection moves focus onto the toolbar. */
+        if (event.key !== "Tab" || event.shiftKey || typing(event.target) || !visible()) return;
+        if (surface.contains(document.activeElement)) return;
+        if (surface.focusToolbar()) event.preventDefault();
       });
       document.addEventListener("selectionchange", function () {
         if (touchInput) settle();
@@ -1065,12 +1033,16 @@
       document.addEventListener("touchend", function (event) {
         if (!outsideDocument(event.target)) settle();
       }, { passive: true });
-      window.addEventListener("resize", hide);
+      window.addEventListener("scroll", moved, { passive: true, capture: true });
+      window.addEventListener("resize", moved);
     }
 
-    function notePointer(event) {
+    /* A press elsewhere puts the toolbar away, and an empty composer with it; a
+       composer holding words stays until it is saved or cancelled. */
+    function pointerdown(event) {
       touchInput = event.pointerType === "touch" || event.pointerType === "pen";
-      if (pill && pill.contains(event.target)) heldUntil = Date.now() + TAP_GRACE_MS;
+      if (surface && surface.contains(event.target)) { heldUntil = Date.now() + TAP_GRACE_MS; return; }
+      if (composing() && !surface.text()) surface.cancel();
     }
 
     /* Handle drags fire `selectionchange` continuously; act on the last one only. */
@@ -1080,7 +1052,7 @@
     }
 
     function outsideDocument(target) {
-      return ui.panel.contains(target) || Boolean(pill && pill.contains(target));
+      return ui.panel.contains(target) || Boolean(surface && surface.contains(target));
     }
 
     function collapsed() {
@@ -1089,7 +1061,7 @@
     }
 
     function consider() {
-      if (Date.now() < heldUntil) return;
+      if (Date.now() < heldUntil || composing()) return;
       /* Writing needs the server; offline, a passage has nowhere to go. */
       if (!state.api || collapsed()) return hide();
       var selection = window.getSelection();
@@ -1097,49 +1069,137 @@
       var block = blockOf(range.commonAncestorContainer);
       var quote = selection.toString().trim();
       if (!block || quote.length < 3 || !block.closest("main")) return hide();
-      anchor = {
+      offered = {
         block_index: parseInt(block.getAttribute("data-vr-block"), 10),
         quote: quote,
         prefix: contextBefore(block, range),
         suffix: contextAfter(block, range)
       };
-      show(range.getBoundingClientRect());
+      actions().offer(range.getBoundingClientRect(), touchInput);
     }
-
-    /* Centred over the passage, or below it when there is no room above — and
-       always below for a finger, since iOS draws its own Copy / Look Up callout
-       over the top edge of a touch selection. */
-    function show(rect) {
-      mount();
-      pill.hidden = false;
-      pill.classList.toggle("touch", touchInput);
-      var box = pill.getBoundingClientRect();
-      var viewport = root.clientWidth;
-      var left = Math.max(EDGE, Math.min(rect.left + rect.width / 2 - box.width / 2, viewport - box.width - EDGE));
-      var above = !touchInput && rect.top >= box.height + 2 * EDGE;
-      var top = above ? rect.top - box.height - EDGE : rect.bottom + EDGE;
-      top = Math.max(EDGE, Math.min(top, window.innerHeight - box.height - EDGE));
-      pill.style.left = left + "px";
-      pill.style.top = top + "px";
-    }
-
-    function hide() { if (pill) pill.hidden = true; }
-    function visible() { return Boolean(pill && !pill.hidden); }
 
     function choose() {
-      var passage = anchor;
-      hide();
-      if (!passage) return;
+      var passage = offered;
+      if (!passage || !state.api) return hide();
+      offered = null;
+      heldUntil = 0;   /* the tap reached its action: selections count again */
       /* The finger's native callout stays over the page as long as the
-         selection lives, and the composer's chip already carries the passage. */
+         selection lives; the draft mark paints the passage from here on. */
       var selection = window.getSelection();
       if (selection) selection.removeAllRanges();
-      Composer.arm({ anchor: passage, label: null });
+      start({ anchor: passage, label: null });
+      surface.open(draftRect(), "passage");
     }
 
-    window.addEventListener("scroll", hide, { passive: true });
+    /* A figure's button opens the composer beside it, in place of an empty
+       composer, never of one holding words. */
+    function figure(passage, button) {
+      if (composing()) {
+        if (surface.text()) return;
+        surface.cancel();
+      }
+      hide();
+      origin = button && button.isConnected ? button : null;
+      start(passage);
+      actions().open(draftRect(), "figure");
+    }
 
-    return { bind: bind, hide: hide, visible: visible };
+    function start(draft) {
+      state.draft = draft;
+      Highlights.paint();
+    }
+
+    function save(body) {
+      var known = state.threads.map(function (thread) { return thread.id; });
+      return Api.openThread(state.draft.anchor, body)
+        .then(function () { showCreated(known); return true; })
+        .catch(function (error) { failed(error); return false; });
+    }
+
+    /* The server answers with every thread, not the one it created: the new
+       thread is the one that was not there before. It becomes the active one,
+       its passage or figure emphasised where the comment was written; an open
+       panel brings its card into view. */
+    function showCreated(known) {
+      var created = state.threads.filter(function (thread) { return known.indexOf(thread.id) < 0; });
+      if (created.length !== 1) return;
+      state.filter = "open";
+      state.active = created[0].id;
+      paint();
+      if (!Panel.isOpen()) return;
+      var card = ui.threads.querySelector('[data-thread="' + cssEscape(created[0].id) + '"]');
+      if (card) card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+
+    /* Cancelling a figure's composer hands the focus back to its button. */
+    function closed(reason) {
+      var button = origin;
+      state.draft = null;
+      origin = null;
+      Highlights.paint();
+      if (reason === "cancel" && button && button.isConnected) button.focus({ preventScroll: true });
+    }
+
+    /* Escape on the toolbar drops the selection with it. */
+    function dismissed() {
+      offered = null;
+      var selection = window.getSelection();
+      if (selection) selection.removeAllRanges();
+    }
+
+    /* Where the composer's passage is on screen: the box around its painted
+       lines, or the figure's button; null when it is scrolled out of view. */
+    function draftRect() {
+      var rects = [];
+      if (origin && origin.isConnected) rects.push(origin.getBoundingClientRect());
+      else if (state.draft) {
+        document.querySelectorAll("mark.vr-draft").forEach(function (mark) {
+          Array.prototype.forEach.call(mark.getClientRects(), function (rect) { rects.push(rect); });
+        });
+        var block = blockAt(state.draft.anchor.block_index);
+        if (!rects.length && block) rects.push(block.getBoundingClientRect());
+      }
+      rects = rects.filter(function (rect) {
+        return rect.width && rect.height && rect.bottom > 0 && rect.top < window.innerHeight;
+      });
+      if (!rects.length) return null;
+      var box = {
+        left: Math.min.apply(null, rects.map(function (rect) { return rect.left; })),
+        top: Math.min.apply(null, rects.map(function (rect) { return rect.top; })),
+        right: Math.max.apply(null, rects.map(function (rect) { return rect.right; })),
+        bottom: Math.max.apply(null, rects.map(function (rect) { return rect.bottom; }))
+      };
+      box.width = box.right - box.left;
+      box.height = box.bottom - box.top;
+      return box;
+    }
+
+    /* The surface stays over the reading column, under the top bar. */
+    function bounds() {
+      var column = (document.querySelector(".reading") || document.body).getBoundingClientRect();
+      var bar = document.querySelector(".reader-header");
+      return {
+        left: Math.max(0, column.left),
+        right: Math.min(root.clientWidth, column.right),
+        top: bar ? Math.max(0, bar.getBoundingClientRect().bottom) : 0
+      };
+    }
+
+    /* An open composer follows its passage; the toolbar follows the selection. */
+    function moved() {
+      if (composing()) return surface.follow(draftRect());
+      if (!visible()) return;
+      if (collapsed()) return hide();
+      var rect = window.getSelection().getRangeAt(0).getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) hide();
+      else surface.offer(rect, touchInput);
+    }
+
+    function hide() { if (surface) surface.hide(); }
+    function visible() { return Boolean(surface && surface.offered); }
+    function composing() { return Boolean(surface && surface.composing); }
+
+    return { bind: bind, hide: hide, visible: visible, figure: figure };
   })();
 
   function blockOf(node) {
@@ -1163,19 +1223,19 @@
 
   /* ============================================================= Figures === */
   /* A figure's comment button (drawn by the document's own scripts) asks for a
-     thread on its whole block through `vr-figure-comment`, with the block and a
-     short label (« Tableau : … », « Diagramme »…). */
+     thread on its whole block through `vr-figure-comment`, with the block, a
+     short label (« Tableau : … », « Diagramme »…) and the button itself, which
+     the inline composer opens beside. */
   function bindFigureComments() {
     document.addEventListener("vr-figure-comment", function (event) {
       var detail = event.detail || {};
       var block = detail.block && detail.block.closest ? detail.block.closest("[data-vr-block]") : null;
       if (!block) return;
-      if (!state.api) { Panel.show(true); return; }   /* the composer says why it cannot write */
-      Selection.hide();
-      Composer.arm({
+      if (!state.api) { Panel.show(true); return; }   /* the panel says why it cannot write */
+      Selection.figure({
         anchor: { block_index: parseInt(block.getAttribute("data-vr-block"), 10), quote: "", prefix: "", suffix: "" },
         label: (detail.label || "").trim() || Figures.label(block)
-      });
+      }, detail.origin);
     });
   }
 
@@ -1212,6 +1272,9 @@
     /* A block commented as a whole figure; distinct from figure-actions.js's
        `vr-figure`, which marks every figure and must survive a repaint. */
     var FIGURE = "vr-commented-figure";
+    /* The passage, or the figure, the inline composer is open on. */
+    var DRAFT = "vr-draft";
+    var DRAFT_FIGURE = "vr-draft-figure";
     /* What a click on a commented block must leave to its own handler. A
        table's width grip is there because the click that ends its drag lands
        on it. */
@@ -1229,9 +1292,27 @@
         var view = TextView.read(block);
         var start = quote ? locate(view, quote, thread.anchor) : -1;
         if (start < 0) return flagBlock(block, thread);
-        wrapRange(view, start, start + quote.length, thread);
+        wrapRange(view, start, start + quote.length, function (mark) {
+          mark.className = MARK + (thread.is_open ? "" : " resolved");
+          mark.setAttribute("data-thread", thread.id);
+        });
       });
+      paintDraft(state.draft);
       emphasise(state.active, false);
+    }
+
+    /* The passage the inline composer writes on stays painted while it is
+       open, as the selection it came from would have been; a figure is
+       outlined. */
+    function paintDraft(draft) {
+      if (!draft) return;
+      var block = blockAt(draft.anchor.block_index);
+      if (!block) return;
+      if (wholeBlock(draft.anchor)) return block.classList.add(DRAFT_FIGURE);
+      var quote = collapse(draft.anchor.quote).trim();
+      var view = TextView.read(block);
+      var start = locate(view, quote, draft.anchor);
+      if (start >= 0) wrapRange(view, start, start + quote.length, function (mark) { mark.className = DRAFT; });
     }
 
     /* The index the quote starts at, or -1 when the block no longer holds it.
@@ -1254,8 +1335,9 @@
     }
 
     /* The character range [start, end) as one mark per text node or formula it
-       crosses. Splitting a node never moves the nodes the later slices name. */
-    function wrapRange(view, start, end, thread) {
+       crosses, each dressed by `dress`. Splitting a node never moves the nodes
+       the later slices name. */
+    function wrapRange(view, start, end, dress) {
       var slices = [], current = null;
       for (var index = start; index < end; index++) {
         var point = view.points[index];
@@ -1264,18 +1346,17 @@
           slices.push(current);
         } else current.to = point.offset + 1;
       }
-      slices.forEach(function (slice) { wrapSlice(slice, thread); });
+      slices.forEach(function (slice) { wrapSlice(slice, dress); });
     }
 
-    function wrapSlice(slice, thread) {
+    function wrapSlice(slice, dress) {
       var target = slice.node;
       if (target.nodeType === Node.TEXT_NODE) {
         if (slice.from > 0) target = target.splitText(slice.from);
         if (slice.to - slice.from < target.nodeValue.length) target.splitText(slice.to - slice.from);
       }
       var mark = document.createElement("mark");
-      mark.className = MARK + (thread.is_open ? "" : " resolved");
-      mark.setAttribute("data-thread", thread.id);
+      dress(mark);
       target.parentNode.insertBefore(mark, target);
       mark.appendChild(target);
     }
@@ -1319,8 +1400,10 @@
 
     function clear() {
       document.querySelectorAll(".vr-figure-marker").forEach(function (marker) { marker.remove(); });
-      document.querySelectorAll("." + FIGURE).forEach(function (block) { block.classList.remove(FIGURE); });
-      document.querySelectorAll("mark." + MARK).forEach(function (mark) {
+      document.querySelectorAll("." + FIGURE + ", ." + DRAFT_FIGURE).forEach(function (block) {
+        block.classList.remove(FIGURE, DRAFT_FIGURE);
+      });
+      document.querySelectorAll("mark." + MARK + ", mark." + DRAFT).forEach(function (mark) {
         var parent = mark.parentNode;
         while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
         parent.removeChild(mark);

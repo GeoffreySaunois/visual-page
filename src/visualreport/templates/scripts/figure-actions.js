@@ -6,10 +6,10 @@
    text a comment quotes is unchanged.
 
    Comment does not talk to the comment layer: it dispatches
-   `vr-figure-comment` on `document` with `{block, label}` — `block` the element
-   carrying the block's `data-vr-block` address (document/anchors.py), `label` a
-   short human name for the figure — and the comment layer opens its composer
-   on that block.
+   `vr-figure-comment` on `document` with `{block, label, origin}` — `block` the
+   element carrying the block's `data-vr-block` address (document/anchors.py),
+   `label` a short human name for the figure, `origin` the pressed button — and
+   the comment layer opens its composer on that block, beside the button.
 
    Show full size opens the lightbox (`lightbox.js`). An image or a diagram also
    opens on a plain click on it; a table and a chart only from the button, since
@@ -211,11 +211,11 @@
     if (medium && (medium.src || medium.table)) window.vrLightbox.open(medium, from);
   }
 
-  function comment(figure) {
+  function comment(figure, origin) {
     var block = figure.closest(BLOCK);
     if (!block) return;
     document.dispatchEvent(new CustomEvent("vr-figure-comment", {
-      detail: { block: block, label: KINDS[figure.dataset.figure].label(figure) }
+      detail: { block: block, label: KINDS[figure.dataset.figure].label(figure), origin: origin }
     }));
   }
 
@@ -235,7 +235,7 @@
     var action = element.closest(".figure-action");
     if (action) {
       event.stopPropagation();
-      if (action.dataset.action === "comment") comment(figure); else show(figure, action);
+      if (action.dataset.action === "comment") comment(figure, action); else show(figure, action);
       return;
     }
     var selection = window.getSelection();

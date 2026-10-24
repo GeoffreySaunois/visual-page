@@ -1,9 +1,10 @@
 /* ===========================================================================
-   The comment layer: the Comments panel on the right of the reading column,
-   the floating « Commenter » action over a selected passage, and the marker
-   strokes on every commented passage. Built by `comments.js` inside the frame's
-   empty `#vr-panel`; the frame's stylesheet pushes the reading column aside
-   while `html.vr-comments-open` is set, by `--panel-w`.
+   The comment layer: the Comments panel on the right of the reading column
+   and the marker strokes on every commented passage; the floating toolbar and
+   inline composer over a selected passage are selection-actions.css. Built by
+   `comments.js` inside the frame's empty `#vr-panel`; the frame's stylesheet
+   pushes the reading column aside while `html.vr-comments-open` is set, by
+   `--panel-w`.
 
    Every colour derives from the charte's base tokens, except the marker yellow,
    which is a semantic highlight with its own light and dark steps. The derived
@@ -111,29 +112,6 @@ mark.vr-anchor.resolved.active {
   border-color: var(--vr-mark-rule); color: var(--text);
 }
 .vr-figure-marker:focus-visible { outline: 2px solid var(--vr-ring); outline-offset: 1px; }
-
-/* ------------------------------------------------ The floating action ----- */
-.vr-selection-actions {
-  position: fixed; z-index: 90; display: flex; padding: 3px;
-  border: 1px solid var(--vr-line-strong); border-radius: 19px;
-  background: var(--surface); color: var(--text); box-shadow: var(--vr-pop-shadow);
-  font-family: var(--sans); font-size: 13px;
-  animation: vr-pop-in .14s ease-out;
-}
-.vr-selection-actions[hidden] { display: none; }
-@keyframes vr-pop-in { from { opacity: 0; transform: translateY(4px) scale(.98); } }
-.vr-selection-actions button {
-  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 10px;
-  border: 0; border-radius: 999px; background: transparent; color: var(--text);
-  font: inherit; font-weight: 500; white-space: nowrap; cursor: pointer;
-}
-.vr-selection-actions button .vr-icon { color: var(--vr-muted); }
-.vr-selection-actions button:hover,
-.vr-selection-actions button:focus-visible { background: var(--vr-hover); }
-.vr-selection-actions button:hover .vr-icon,
-.vr-selection-actions button:focus-visible .vr-icon { color: var(--accent); }
-/* A finger needs a 44px target. */
-.vr-selection-actions.touch button { height: 40px; padding: 0 16px 0 14px; font-size: 15px; }
 
 /* --------------------------------------------------------- The panel ------ */
 /* The panel's box is a fixed column on the right; the frame may place it
@@ -410,12 +388,11 @@ mark.vr-anchor.resolved.active {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vr-selection-actions { animation: none; }
   .vr-panel-resize::after { transition: none; }
 }
 
 @media print {
-  #vr-panel, .vr-selection-actions, .vr-menu { display: none !important; }
+  #vr-panel, .vr-menu { display: none !important; }
   mark.vr-anchor { background: none; border: 0; }
   .vr-commented { box-shadow: none; padding-left: 0; outline: 0; }
   .vr-figure-marker { display: none !important; }

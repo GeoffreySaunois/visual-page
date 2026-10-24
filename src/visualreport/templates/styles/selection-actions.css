@@ -1,0 +1,93 @@
+/* ===========================================================================
+   The floating surface over a selected passage (scripts/selection-actions.js):
+   a pill holding « Commenter » that turns, in place, into the composer of a new
+   thread — Gym Lab's selection actions. Also the draft mark: the passage the
+   composer is open on stays painted as the selection it came from.
+   =========================================================================== */
+
+.vr-selection-actions {
+  position: fixed; z-index: 90;
+  border: 1px solid var(--line-strong); border-radius: 19px;
+  background: var(--pop-surface); color: var(--text); box-shadow: var(--shadow-pop);
+  font-family: var(--sans); font-size: var(--t-ui);
+  animation: vr-sa-in var(--dur) var(--ease);
+}
+.vr-selection-actions[hidden],
+.vr-sa-toolbar[hidden],
+.vr-sa-composer[hidden] { display: none; }
+@keyframes vr-sa-in { from { opacity: 0; transform: translateY(4px) scale(.98); } }
+
+.vr-sa-icon { --icon: 16px; display: block; }
+
+/* ------------------------------------------------------------- Toolbar --- */
+.vr-sa-toolbar { display: flex; align-items: center; padding: 3px; }
+.vr-sa-toolbar button {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 10px;
+  border: 0; border-radius: var(--r-pill); background: transparent; color: var(--text);
+  font: inherit; font-weight: 500; white-space: nowrap; cursor: pointer;
+}
+.vr-sa-toolbar .vr-sa-icon { color: var(--muted); }
+.vr-sa-toolbar button:hover,
+.vr-sa-toolbar button:focus-visible { background: var(--hover); color: var(--ink); outline: 0; }
+.vr-sa-toolbar button:hover .vr-sa-icon,
+.vr-sa-toolbar button:focus-visible .vr-sa-icon { color: var(--accent); }
+.vr-sa-toolbar button:focus-visible { box-shadow: var(--focus-ring); }
+/* A finger needs a 40px target. */
+.vr-selection-actions.touch .vr-sa-toolbar button { height: 40px; padding: 0 16px 0 14px; font-size: 15px; }
+
+/* ------------------------------------------------------------ Composer --- */
+/* `--vr-sa-room` is the reading column's width. The round buttons set the
+   one-line height, so the gap around them is the same on every side; more
+   lines grow the field, and the buttons stay on its last. */
+.vr-sa-composer {
+  display: flex; align-items: flex-end; gap: var(--s1);
+  width: min(400px, var(--vr-sa-room, calc(100vw - 16px)));
+  padding: 3px 3px 3px var(--s4);
+}
+.vr-selection-actions:has(.vr-sa-field:focus) { border-color: var(--ring); }
+
+.vr-sa-field {
+  flex: 1; min-width: 0; align-self: center; margin: 0; padding: 0;
+  border: 0; outline: 0; background: transparent; color: var(--ink);
+  font: inherit; font-size: 14px; line-height: 20px;
+  resize: none; overflow-y: hidden; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+.vr-sa-composer.multiline .vr-sa-field { padding: 5px 0; }
+.vr-sa-field::placeholder { color: var(--muted); }
+.vr-sa-composer[aria-busy="true"] .vr-sa-field { color: var(--muted); }
+
+.vr-sa-buttons { display: flex; flex: none; gap: 2px; }
+.vr-sa-buttons button {
+  display: grid; place-items: center; width: 30px; height: 30px; padding: 0;
+  border: 0; border-radius: 50%; cursor: pointer;
+}
+.vr-sa-buttons button:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
+.vr-sa-cancel { background: transparent; color: var(--muted); }
+.vr-sa-cancel:hover, .vr-sa-cancel:focus-visible { background: var(--hover); color: var(--ink); }
+.vr-sa-submit { background: var(--ink); color: var(--page); }
+.vr-sa-submit:hover:not(:disabled) { background: var(--text); }
+.vr-sa-submit:disabled { opacity: .4; cursor: default; }
+
+/* A finger: 40px buttons, and 16px text so Safari does not zoom on focus. */
+@media (pointer: coarse) {
+  .vr-sa-buttons button { width: 40px; height: 40px; }
+  .vr-sa-field { font-size: 16px; line-height: 22px; }
+  .vr-sa-composer.multiline .vr-sa-field { padding: 9px 0; }
+}
+
+/* ---------------------------------------------------------- Draft mark --- */
+mark.vr-draft { background: var(--selection); color: inherit; border-radius: 2px; padding: 0 1px; }
+.vr-draft-figure {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 4px; border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vr-selection-actions { animation: none; }
+}
+
+@media print {
+  .vr-selection-actions { display: none !important; }
+  mark.vr-draft { background: none; }
+  .vr-draft-figure { outline: 0; }
+}
