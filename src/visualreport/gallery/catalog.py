@@ -1,4 +1,4 @@
-"""Reading the archive back: what pages exist, and what is pending on each.
+"""Reading the archive back: what pages exist, and how many threads are open on each.
 
 The pages are the source of truth — each one carries its own metadata in
 `<meta name="report-*">` tags, with a `<title>` and the date in the filename as
@@ -26,6 +26,7 @@ class Entry:
     """One page in the gallery."""
 
     href: str
+    preview: str
     document_id: str
     kind: str
     title: str
@@ -35,7 +36,6 @@ class Entry:
     date: str
     modified: float
     open_comments: int
-    awaiting_agent: int
 
     @property
     def sort_key(self) -> tuple[str, float]:
@@ -66,6 +66,7 @@ def read_entry(archive: Archive, path: Path) -> Entry:
     threads = comments.store_for(archive, identity).read()
     return Entry(
         href=path.name,
+        preview=f"{archive.previews.name}/{path.name}",
         document_id=identity,
         kind=identity.split("-")[0],
         title=meta(source, "title") or title_of(source) or path.stem,
@@ -75,7 +76,6 @@ def read_entry(archive: Archive, path: Path) -> Entry:
         date=date,
         modified=path.stat().st_mtime,
         open_comments=len(threads.open_threads),
-        awaiting_agent=len(threads.awaiting(comments.AuthorKind.AGENT)),
     )
 
 

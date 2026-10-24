@@ -47,7 +47,10 @@ changed.
 it works from any directory and syncs the environment on the way in.
 
 **Hosted code runs in the deployed Cloud Run image.** A backend change requires a
-new deployment. A template change requires republishing its affected reports.
+new deployment — so does a gallery change: the hosted gallery is rendered per
+request from `templates/gallery.html`, and its card previews come from the
+service's `/previews/<page>` route, which cuts them from the stored page and holds
+them in memory by object key. A template change requires republishing its affected reports.
 `visual-report serve` is an explicit loopback preview; restart that preview after
 changing its Python code. It starts no tunnel or background login service.
 `VISUAL_REPORT_ARCHIVE` selects a different local authoring archive for tests.
@@ -90,8 +93,11 @@ src/visualreport/
     detached.py       the lifecycle both background processes share
     daemon.py         the server process: its command, its state, its health check
     tunnel.py         the cloudflared tunnel: the config it reads, a page's public URL
-  gallery/          the archive index, filed by folder, with what is pending on each page
-  templates/        page.html, gallery.html, styles/*.css, scripts/*.js
+  gallery/          the archive index, filed by folder
+    catalog.py        the pages read back from their meta tags
+    index.py          the directories, the folder tree and the cards
+    preview.py        a page cut down to what its card's preview shows
+  templates/        page.html, gallery.html, partials/, styles/*.css, scripts/*.js
 ```
 
 ## The two ideas worth knowing
@@ -136,11 +142,10 @@ decorator, not rewriting the body again.
 - **Reading never needs the server.** Every page embeds its threads as JSON, so an
   archived file opened by double-click shows the whole exchange. Only *writing*
   needs the server.
-- **A palette dresses the chrome, never the document.** The dark palettes (navy,
-  violet, grey) recolour the sidebar, the top bar, the comments panel and the
-  menus; the reading column re-declares the navy tokens for itself (`charte.css`),
-  so every content block, the lightbox, and the colours charts and diagrams read
-  from a probe inside `main` stay on the document canvas, as in Lab.
+- **A dark palette paints the whole page.** Navy or grey recolours the chrome and
+  the reading column alike (`charte.css` declares the palette again on `.reading`),
+  so content blocks, the lightbox and the colours charts and diagrams read from a
+  probe inside `main` all sit on one uniform canvas.
 - **A new thread is written at its passage, a reply in the panel.** Selecting text
   (or a figure's Commenter) opens Gym Lab's floating composer right there
   (`scripts/selection-actions.js`); the Comments panel lists threads and answers
@@ -161,6 +166,10 @@ decorator, not rewriting the body again.
 - **Publication is explicit.** `render --serve` writes to the hosted service and
   returns its HTTPS URL. A failed or expired login fails publication clearly;
   there is no silent fallback to a private loopback URL.
+- **A gallery preview runs nothing.** Each card frames `previews/<page>.html` (or
+  the hosted `/previews/<page>`) in an iframe sandboxed with no permission: no
+  script, no storage, no comment polling, no focus. The hosted service therefore
+  allows same-origin framing (`frame-ancestors 'self'`) and no other.
 - **Local preview is explicit.** `--local` and `serve` never open a public tunnel.
 
 ## Testing

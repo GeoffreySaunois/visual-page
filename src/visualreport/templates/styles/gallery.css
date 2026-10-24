@@ -1,0 +1,285 @@
+/* ===========================================================================
+   The gallery, inside the pages' frame. charte.css comes first and supplies
+   everything shared — tokens, palettes, the sidebar, the top bar, the
+   appearance menu; this sheet only adds what the gallery alone has: the folder
+   tree, the search and order tools, and the cards.
+
+   Under a dark palette the gallery is chrome from edge to edge: it has no
+   reading column, so the palette dresses its whole canvas.
+
+   1. Folder tree
+   2. Tools: search and order
+   3. Directories
+   4. Cards
+   5. Previews
+   6. Search mode
+   7. Narrow screens
+   =========================================================================== */
+
+:root {
+  /* One card size for folders and pages. */
+  --thumb-h: 172px;
+  --card-body-h: 150px;
+  --card-min-w: 236px;
+  --sheet-inset: 22px;
+
+  /* A preview lays the page out at a desktop width — sidebar beside a full
+     reading column, see charte.css §5–6 — and frames its document column,
+     cut under the top bar. `--thumb-scale` and `--sheet-scale` are written by
+     gallery.js from a preview's rendered width. */
+  --frame-w: 1260px;
+  --crop-x: 340px;
+  --crop-y: 88px;
+  --crop-w: 840px;
+  --thumb-scale: .3;
+  --sheet-scale: .25;
+}
+
+.gallery-page { font-family: var(--font-ui); font-size: var(--t-ui); line-height: 1.5; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+
+/* 1. Folder tree ========================================================== */
+
+.folder-tree {
+  display: flex; flex-direction: column; gap: 2px;
+  min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin;
+}
+.tree-link {
+  --depth: 0;
+  display: flex; align-items: center; gap: var(--s2);
+  min-height: 32px;
+  padding: 0 var(--s3) 0 calc(var(--s3) + var(--depth) * 14px);
+  border-radius: var(--r-md);
+  color: var(--text); text-decoration: none;
+  font-size: var(--t-ui); font-weight: 500;
+}
+.tree-link[data-depth="1"] { --depth: 1; }
+.tree-link[data-depth="2"] { --depth: 2; }
+.tree-link[data-depth="3"] { --depth: 3; }
+.tree-link .icon { width: 16px; height: 16px; color: var(--muted); }
+.tree-link .label { flex: 1; }
+.tree-count { color: var(--faint); font-size: var(--t-meta); font-variant-numeric: tabular-nums; }
+.tree-link:hover { background: var(--hover); color: var(--ink); }
+.tree-link:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
+.tree-link[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.tree-link[aria-current="page"] .icon { color: var(--accent); }
+
+@media (min-width: 701px) {
+  .sidebar-collapsed .folder-tree { display: none; }
+}
+
+
+/* 2. Tools: search and order ============================================== */
+
+.gallery {
+  flex: 1;
+  width: 100%; max-width: 1440px;
+  padding: var(--s5) 40px 96px;
+}
+.gallery-tools {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+.search-field {
+  position: relative;
+  display: flex; align-items: center;
+  flex: 1 1 280px; max-width: 480px;
+}
+.search-field .icon {
+  position: absolute; left: 11px;
+  width: 16px; height: 16px; color: var(--muted); pointer-events: none;
+}
+.search-field input {
+  width: 100%; height: var(--tap-lg);
+  padding: 0 var(--s3) 0 34px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--panel); color: var(--ink);
+  font: inherit; font-size: var(--t-ui);
+}
+.search-field input::placeholder { color: var(--faint); }
+.search-field input:hover { border-color: var(--line-strong); }
+.search-field input:focus { outline: 0; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 25%, transparent); }
+
+.sorts {
+  display: inline-flex; gap: 2px;
+  margin-left: auto; padding: 3px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--raised);
+}
+.sorts button {
+  height: 28px; padding: 0 var(--s3);
+  border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--muted);
+  font: inherit; font-size: var(--t-meta); font-weight: 600;
+  cursor: pointer;
+}
+.sorts button:hover { color: var(--ink); }
+.sorts button[aria-pressed="true"] { background: var(--page); color: var(--ink); box-shadow: 0 1px 2px rgb(1 1 61 / .08); }
+.sorts button:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
+
+
+/* 3. Directories ========================================================== */
+
+.dir-summary, .search-summary {
+  max-width: 72ch;
+  margin: 0 0 var(--s2);
+  color: var(--muted); font-size: var(--t-ui);
+}
+.dir-label {
+  margin: var(--s5) 0 var(--s3);
+  color: var(--muted);
+  font-size: var(--t-label); font-weight: 600; letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+.dir-label .when-searching { display: none; }
+.empty, .no-results { color: var(--muted); font-size: var(--t-ui); }
+
+
+/* 4. Cards ================================================================ */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min-w), 1fr));
+  gap: 20px;
+}
+.card {
+  position: relative;
+  display: grid; grid-template-rows: var(--thumb-h) var(--card-body-h);
+  overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--panel);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.card:hover { border-color: var(--line-strong); box-shadow: var(--shadow-raised); transform: translateY(-2px); }
+.card:has(.card-link:focus-visible) { box-shadow: var(--focus-ring); }
+.card.hidden { display: none; }
+
+/* Kicker, name and description read as one group from the top; the meta
+   line sits on the card's floor, so every card ends on the same baseline. */
+.card-body {
+  display: flex; flex-direction: column; gap: 4px;
+  min-width: 0;
+  padding: var(--s3) 14px var(--s3);
+}
+.card-kicker {
+  display: block;
+  margin: 0; min-width: 0;
+  color: var(--accent);
+  font-size: var(--t-label); font-weight: 600; letter-spacing: var(--ls-label);
+  line-height: 18px; text-transform: uppercase;
+  margin-bottom: 2px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.card-kicker .icon { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; }
+.card-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px; font-weight: 600; letter-spacing: -.01em; line-height: 20px;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.card-link { color: inherit; text-decoration: none; outline: 0; }
+/* The title's link covers the whole card: one target, one tab stop. */
+.card-link::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.card-desc {
+  margin: 0;
+  color: var(--muted); font-size: var(--t-meta); line-height: 19px;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.card-meta {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  margin: auto 0 0;
+  color: var(--faint); font-size: var(--t-meta); font-variant-numeric: tabular-nums;
+}
+.card-comments { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.card-comments .icon { width: 13px; height: 13px; }
+
+
+/* 5. Previews ============================================================= */
+
+.thumb {
+  position: relative; overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background: var(--raised);
+}
+/* The page itself, laid out at desktop width and scaled down onto its
+   document column. Script-less and out of reach: it never runs, never
+   polls, never takes focus or a click. */
+.thumb > iframe, .sheet > iframe {
+  position: absolute; left: 0; top: 0;
+  width: var(--frame-w);
+  border: 0; background: #FFFFFF;
+  transform-origin: 0 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease);
+}
+.thumb > iframe {
+  height: calc(var(--thumb-h) / var(--thumb-scale) + var(--crop-y));
+  transform: translate(calc(var(--crop-x) * var(--thumb-scale) * -1), calc(var(--crop-y) * var(--thumb-scale) * -1)) scale(var(--thumb-scale));
+}
+.sheet > iframe {
+  height: calc(var(--thumb-h) / var(--sheet-scale) + var(--crop-y));
+  transform: translate(calc(var(--crop-x) * var(--sheet-scale) * -1), calc(var(--crop-y) * var(--sheet-scale) * -1)) scale(var(--sheet-scale));
+}
+.thumb iframe.loaded { opacity: 1; }
+
+/* A folder: its most recent page as the top sheet of a stack. */
+.thumb-stack::before, .thumb-stack::after {
+  content: ""; position: absolute; bottom: 0;
+  border: 1px solid var(--line-strong); border-bottom: 0;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+.thumb-stack::after { left: calc(var(--sheet-inset) + 20px); right: calc(var(--sheet-inset) + 20px); top: 8px; background: var(--hover); }
+.thumb-stack::before { left: calc(var(--sheet-inset) + 10px); right: calc(var(--sheet-inset) + 10px); top: 14px; background: var(--pressed); }
+.sheet {
+  position: absolute; left: var(--sheet-inset); right: var(--sheet-inset); top: 20px; bottom: 0;
+  z-index: 1; overflow: hidden;
+  border: 1px solid var(--line-strong); border-bottom: 0;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  background: var(--panel);
+  box-shadow: 0 -4px 12px -6px rgb(1 1 61 / .18);
+}
+
+/* The previews show pages as they print on screen in light; under a dark
+   theme they are dimmed a step so a grid of them does not glare. */
+@media screen {
+  :root[data-resolved-theme="dark"] .thumb iframe.loaded { opacity: .88; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .thumb iframe { transition: none; }
+  .card:hover { transform: none; }
+}
+
+
+/* 6. Search mode ========================================================== */
+
+/* A query lays every directory out flat: folders and summaries drop, each
+   directory keeps its own pages under its location, and the directories with
+   no match fall silent. */
+body.searching .dir[hidden] { display: block !important; }
+body.searching .dir.silent,
+body.searching .folders,
+body.searching .folders-label,
+body.searching .dir-summary,
+body.searching .dir-label .when-browsing { display: none !important; }
+body.searching .dir-label .when-searching { display: inline; }
+
+
+/* 7. Narrow screens ======================================================= */
+
+@media (min-width: 701px) and (max-width: 1000px) {
+  .gallery { padding: var(--s5) var(--s6) 80px; }
+}
+
+@media (max-width: 700px) {
+  .gallery { padding: var(--s4) var(--gutter) 72px; }
+  .search-field { flex-basis: 100%; max-width: none; }
+  .sorts { margin-left: 0; }
+  .search-field input { height: 40px; font-size: 16px; }
+  .cards { gap: var(--s4); }
+}

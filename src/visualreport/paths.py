@@ -5,6 +5,7 @@ Everything a report accumulates sits under one directory outside any repo:
     ~/.claude/html-reports/
       report-<slug>-<date>.html     the rendered pages
       index.html                    the gallery
+      previews/<page>.html          each page cut down to what its gallery card shows
       src/report-<slug>-<date>.md   the markdown sources, kept for re-renders
       comments/<slug>.json          the comment threads of a report
       logs/server.log               the comment server's output
@@ -55,6 +56,10 @@ class Archive:
     @property
     def logs(self) -> Path:
         return self.root / "logs"
+
+    @property
+    def previews(self) -> Path:
+        return self.root / "previews"
 
     @property
     def index(self) -> Path:

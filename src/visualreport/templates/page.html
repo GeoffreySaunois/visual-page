@@ -22,7 +22,7 @@
   var mode = stored("vr-theme");
   if (mode !== "light" && mode !== "dark") mode = "auto";
   var palette = stored("vr-palette");
-  if (palette !== "violet" && palette !== "grey") palette = "navy";
+  if (palette !== "grey") palette = "navy";
   var dark = mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   root.setAttribute("data-theme", mode);
   root.setAttribute("data-palette", palette);
@@ -45,7 +45,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Navigation du document">
   <div class="brand">
     <a class="brand-link" href="index.html" title="Retour à la galerie">
-      <svg class="icon" aria-hidden="true"><use href="#vr-i-library"></use></svg><span class="label">Galerie</span>
+      <svg class="brand-mark" aria-hidden="true"><use href="#vr-mark"></use></svg><span class="label">Galerie</span>
     </a>
     <button type="button" class="icon-button sidebar-collapse" id="sidebar-collapse" aria-label="Replier la barre latérale" aria-controls="sidebar" aria-expanded="true">
       <svg class="icon icon-when-open" aria-hidden="true"><use href="#vr-i-panel-left-close"></use></svg>
@@ -73,6 +73,7 @@
     <button type="button" class="icon-button mobile-menu" id="mobile-menu" aria-label="Ouvrir la barre latérale" aria-controls="sidebar" aria-expanded="false">
       <svg class="icon" aria-hidden="true"><use href="#vr-i-menu"></use></svg>
     </button>
+    {{BACK_TO_FOLDER}}
     <div class="reader-title">
       {{BREADCRUMB}}
       <p class="reader-heading" title="{{TITLE}}">{{TITLE}}</p>
@@ -98,20 +99,7 @@
 </div>
 </div>
 
-<div class="appearance-menu" id="appearance-menu" role="dialog" aria-label="Apparence" hidden>
-  <section class="menu-section" aria-labelledby="appearance-mode">
-    <h2 class="menu-heading" id="appearance-mode">Thème</h2>
-    <button type="button" class="menu-option" data-theme-mode="auto" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#vr-i-monitor"></use></svg><span>Système</span><svg class="icon menu-tick" aria-hidden="true"><use href="#vr-i-check"></use></svg></button>
-    <button type="button" class="menu-option" data-theme-mode="light" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#vr-i-sun"></use></svg><span>Clair</span><svg class="icon menu-tick" aria-hidden="true"><use href="#vr-i-check"></use></svg></button>
-    <button type="button" class="menu-option" data-theme-mode="dark" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#vr-i-moon"></use></svg><span>Sombre</span><svg class="icon menu-tick" aria-hidden="true"><use href="#vr-i-check"></use></svg></button>
-  </section>
-  <section class="menu-section" aria-labelledby="appearance-palette">
-    <h2 class="menu-heading" id="appearance-palette">Palette sombre</h2>
-    <button type="button" class="menu-option" data-theme-palette="navy" aria-pressed="false"><span class="swatch swatch-navy" aria-hidden="true"></span><span>Marine</span><svg class="icon menu-tick" aria-hidden="true"><use href="#vr-i-check"></use></svg></button>
-    <button type="button" class="menu-option" data-theme-palette="violet" aria-pressed="false"><span class="swatch swatch-violet" aria-hidden="true"></span><span>Violet</span><svg class="icon menu-tick" aria-hidden="true"><use href="#vr-i-check"></use></svg></button>
-    <button type="button" class="menu-option" data-theme-palette="grey" aria-pressed="false"><span class="swatch swatch-grey" aria-hidden="true"></span><span>Gris</span><svg class="icon menu-tick" aria-hidden="true"><use href="#vr-i-check"></use></svg></button>
-  </section>
-</div>
+{{APPEARANCE_MENU}}
 
 <aside id="vr-panel" aria-label="Commentaires" hidden></aside>
 

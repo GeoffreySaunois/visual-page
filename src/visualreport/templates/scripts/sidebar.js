@@ -56,9 +56,9 @@
       if (menuButton) menuButton.focus({ preventScroll: true });
     }
   });
-  /* A section picked in the drawer closes it, so the reader lands on the text. */
+  /* A section or a folder picked in the drawer closes it, so the reader lands on it. */
   sidebar.addEventListener("click", function (event) {
-    if (DRAWER_MEDIA.matches && event.target.closest(".contents-link")) setDrawer(false);
+    if (DRAWER_MEDIA.matches && event.target.closest(".contents-link, .tree-link")) setDrawer(false);
   });
   DRAWER_MEDIA.addEventListener("change", function () { setDrawer(false); });
 })();

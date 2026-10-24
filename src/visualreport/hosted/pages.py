@@ -2,12 +2,14 @@
 
 import json
 import re
+from collections import OrderedDict
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from ..comments import report_view
+from ..gallery.preview import snapshot
 from .gallery import gallery_html
 from .history import archive_response
 from .identity import AccessIdentity
@@ -28,8 +30,34 @@ def report_html(service: ReportService, report: Report) -> str:
     )
 
 
+class Previews:
+    """The gallery cards' previews, cut from the stored pages on first request.
+
+    A stored page never changes under its key — each version is uploaded under
+    a fresh one — so a preview keyed on it stays right for as long as it is held.
+    The most recently used are held, up to `budget` characters in all."""
+
+    def __init__(self, budget: int):
+        self.budget = budget
+        self.held: OrderedDict[str, str] = OrderedDict()
+        self.size = 0
+
+    def of(self, service: ReportService, report: Report) -> str:
+        key = report.html_key
+        if key in self.held:
+            self.held.move_to_end(key)
+            return self.held[key]
+        preview = snapshot(service.objects.read(key))
+        self.held[key] = preview
+        self.size += len(preview)
+        while self.size > self.budget and len(self.held) > 1:
+            self.size -= len(self.held.popitem(last=False)[1])
+        return preview
+
+
 def page_router(service: ReportService, identity: AccessIdentity) -> APIRouter:
     routes = APIRouter()
+    previews = Previews(budget=48_000_000)
 
     def email(request: Request) -> str:
         return identity.email(request.headers.get("Cf-Access-Jwt-Assertion"))
@@ -42,6 +70,12 @@ def page_router(service: ReportService, identity: AccessIdentity) -> APIRouter:
     @routes.get("/index.html", response_class=HTMLResponse)
     def gallery_index(request: Request):
         return gallery_html(service, email(request))
+
+    @routes.get("/previews/{page_name}", response_class=HTMLResponse)
+    def preview(page_name: str, request: Request):
+        report = service.reports.page(page_name)
+        report.authorize(email(request), False, service.access())
+        return previews.of(service, report)
 
     @routes.get("/reports/{document_id}", response_class=HTMLResponse)
     def report(document_id: str, request: Request):

@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Visual page">
-  <rect width="32" height="32" rx="7" fill="#6d28d9"/>
-  <rect x="8.5" y="8.3" width="15" height="3.2" rx="1.6" fill="#ffffff"/>
-  <rect x="8.5" y="14.4" width="15" height="3.2" rx="1.6" fill="#e8a33d"/>
-  <rect x="8.5" y="20.5" width="9" height="3.2" rx="1.6" fill="#ffffff"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Visual page"><rect x="2" y="5" width="28" height="9" rx="4.5" fill="#FF5A5F"/><rect x="2" y="18" width="17" height="9" rx="4.5" fill="#6B3FF0"/></svg>

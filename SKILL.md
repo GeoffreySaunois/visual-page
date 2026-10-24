@@ -94,7 +94,7 @@ the body of the reasoning.
 + the dialect below) and compiled by `visual-report render` into a self-contained HTML
 page — Gym Lab's reader frame (a collapsible sidebar with a numbered table of
 contents that follows the reading, a top bar of icon buttons, Lab's themes: system /
-light / dark × navy / violet / grey palettes), charte boxes, build-time Pygments highlighting, and pinned CDN tags
+light / dark × navy / grey palettes), charte boxes, build-time Pygments highlighting, and pinned CDN tags
 injected **only** for the features the page actually uses (MathJax / Chart.js /
 Mermaid). Writing markdown keeps the register in "document" mode (dense, developed
 prose) instead of "landing page" mode, and removes the lossy spec-to-sub-agent hop:
@@ -256,6 +256,7 @@ any repo, so they're never tracked and accumulate across sessions for demos:
 ```
 <kind>-<slug>-<date>.html      the pages
 index.html                     the gallery (rebuilt on every render)
+previews/<page>.html           each page cut down to its gallery card's preview
 src/<kind>-<slug>-<date>.md    the sources, kept for re-renders
 src/.last-rendered/<doc>.md    the version the next iteration diff compares to
 comments/<doc>.json            the comment threads
@@ -264,17 +265,25 @@ logs/server.log  .server.json  the local server
 
 A **document** is `<kind>-<slug>` (e.g. `report-gym-costs`) — the identity that is
 stable across renders, and what comments and iterations are keyed on. The gallery
-reads each page's `<meta name="report-*">` tags and shows how many comments are
-open on it, flagging those waiting on Claude. To browse, `open ~/.claude/html-reports/`.
+reads each page's `<meta name="report-*">` tags. To browse, `open ~/.claude/html-reports/index.html`.
 
-**The gallery browses like a file system.** One directory on screen at a time: the
-root shows the sections (*Swaap*, *Personal*) as folder tiles, a section shows its
-folders as tiles then the pages filed directly in it, a folder shows its pages. A
-breadcrumb climbs back up, and the URL hash names the directory (`#/swaap/gym`), so
-a folder can be bookmarked and the back button leaves it. Each tile totals the pages
-underneath and the comments waiting on Claude. Search is global: it flattens the
-whole archive into one list, each page labeled with its folder, and clearing it
-returns to the directory. Sorting reorders the cards inside the current directory.
+**The gallery browses like a file system**, in the pages' own Lab frame (sidebar,
+top bar, the same `vr-theme` / `vr-palette` appearance). One directory on screen at
+a time: the root shows the sections (*Swaap*, *Personal*) as folder cards, a section
+shows its folders then the pages filed directly in it, a folder shows its pages. The
+sidebar lists every folder with its page count; the top bar's breadcrumb and back
+arrow climb back up, and the URL hash names the directory (`#/swaap/gym`), so a
+folder can be bookmarked, a page's back arrow and breadcrumb open their own folder,
+and the browser's back button leaves it. Folder and page cards share one size, each
+with a preview: a page shows its own top; a folder shows its most recent page as the
+top sheet of a stack. A preview is a script-less, sandboxed iframe over
+`previews/<page>.html` — the page cut to its first blocks, without scripts or
+threads, heavy images past a budget replaced by a neutral box — mounted only while
+its card is near the screen. Search is global: it flattens the whole archive into
+one list, each page labeled with its folder, and clearing it returns to the
+directory. The order (Récentes, Anciennes, A–Z) applies to the pages of the current
+directory. The gallery carries no comment queue: an open-thread count is a quiet
+icon on a page card; what waits on Claude is `visual-report comments`.
 The folder comes from the page's `report-folder` meta tag, which the front matter
 `folder` feeds. A page carrying no such tag — rendered before folders existed — sits
 in an *À classer* tile at the root until it is filed: add `folder:` to its archived
@@ -369,10 +378,13 @@ review, a recap is re-rendered after new commits.
   - **Commentaires** (speech-bubble icon, open-thread count as a badge, shortcut `C`) —
     opens the comment panel (see below); always present.
   - **PDF** (download icon) and **Apparence** — the appearance menu: thème
-    Système / Clair / Sombre and palette sombre Marine / Violet / Gris, persisted
+    Système / Clair / Sombre and palette sombre Marine / Gris, persisted
     per viewer (`vr-theme`, `vr-palette`).
-  - **Galerie** — back to the gallery, from the sidebar's top row (or the rail
-    when the sidebar is collapsed) and from the breadcrumb.
+  - **Galerie** — back to the gallery root, from the sidebar's top row (or the rail
+    when the sidebar is collapsed).
+  - **Back arrow and breadcrumb** (top bar, left) — the arrow returns to the
+    gallery folder the page is filed in (`index.html#/<folder>`); every breadcrumb
+    segment opens that folder in the gallery.
 
 Matching is `difflib` over the source blocks (a pragmatic top-level splitter that
 keeps fences and callouts whole); a changed block pairs as *modified* when it stays
@@ -428,8 +440,7 @@ the thread is about the document. Every write defaults to `--as claude`; pass
 
 **Who owes the next move.** Each open thread derives it from the last message:
 `attend Claude` when Geoffrey wrote last, `attend Geoffrey` when you did. That is
-your work queue — `visual-report comments <document>` puts the count in its header,
-and the gallery flags the pages waiting on you.
+your work queue — `visual-report comments <document>` puts the count in its header.
 
 **How to answer well.** Read the threads, fix the *source*, re-render, then reply
 in each thread saying what changed. **Never resolve a thread yourself** — resolving

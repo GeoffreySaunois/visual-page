@@ -1,5 +1,5 @@
 /* The page's appearance: a mode (auto / light / dark) that decides whether the
-   dark tokens apply, and a palette (navy / violet / grey) that picks which dark
+   dark tokens apply, and a palette (navy / grey) that picks which dark
    canvas they paint — Gym Lab's two choices, persisted per viewer.
 
    The head script already wrote both on <html> before the first paint; this
@@ -12,7 +12,7 @@
   var MODE_KEY = "vr-theme";
   var PALETTE_KEY = "vr-palette";
   var MODES = ["auto", "light", "dark"];
-  var PALETTES = ["navy", "violet", "grey"];
+  var PALETTES = ["navy", "grey"];
   var MODE_ICONS = { auto: "monitor", light: "sun", dark: "moon" };
   var MODE_NAMES = { auto: "système", light: "clair", dark: "sombre" };
 
