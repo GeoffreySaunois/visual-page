@@ -2,7 +2,7 @@ from dataclasses import replace
 
 from visualreport import folders
 from visualreport.gallery.catalog import Entry
-from visualreport.gallery.index import ROOT, breadcrumb, children, location, under
+from visualreport.gallery.index import ROOT, children, directory, location, under
 
 
 def test_nested_folder_is_reachable_without_flattening_its_reports():
@@ -10,7 +10,17 @@ def test_nested_folder_is_reachable_without_flattening_its_reports():
     gym = folders.folder("swaap/gym")
     swaap = folders.folder("swaap")
     entry = Entry(
-        "report.html", "report-lab", "report", "Lab", "", "", lab, "2026-09-16", 0, 3, 2
+        "report.html",
+        "previews/report.html",
+        "report-lab",
+        "report",
+        "Lab",
+        "",
+        "",
+        lab,
+        "2026-09-16",
+        0,
+        3,
     )
     own = replace(entry, folder=gym, document_id="report-optimization")
     entries = [entry, own]
@@ -20,7 +30,7 @@ def test_nested_folder_is_reachable_without_flattening_its_reports():
     assert under(gym, entries) == entries
     assert under(lab, entries) == [entry]
     assert children(lab, entries) == []
-    assert 'href="#/swaap/gym"' in breadcrumb(lab)
+    assert 'href="#/swaap/gym/lab"' in directory(gym, entries)
     assert location(lab) == "Swaap › Gym › Gym Lab"
 
 

@@ -186,12 +186,25 @@ def test_unshared_report_is_absent_from_gallery_and_every_read_route(environment
     for path in [
         "/reports/report-demo",
         "/report-demo-2026-09-21.html",
+        "/previews/report-demo-2026-09-21.html",
         "/api/documents/report-demo/threads",
     ]:
         assert client.get(path, headers=bob).status_code == 404
     assert "Private title" not in client.get("/", headers=bob).text
     assert client.get("/api/documents", headers=bob).json()["documents"] == []
     assert client.get("/source.md", headers=headers(token, OWNER)).status_code == 404
+
+
+def test_a_gallery_preview_never_carries_the_page_threads(environment):
+    # The preview frame runs no script, so the embedded threads are only weight
+    # there — and a leak should anything ever read the frame.
+    client, _, _, token = environment
+    response = client.get(
+        "/previews/report-demo-2026-09-21.html", headers=headers(token, OWNER)
+    )
+    assert response.status_code == 200
+    assert "private report" in response.text
+    assert "stale secret" not in response.text and "<script" not in response.text
 
 
 def test_reader_cannot_write_and_revocation_affects_existing_session(environment):

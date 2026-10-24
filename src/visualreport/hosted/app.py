@@ -36,7 +36,9 @@ def response_guard(public_origin: str):
         response.headers["Cache-Control"] = "private, no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
+        # The gallery previews each page in a same-origin iframe; no other
+        # origin may frame the site.
+        response.headers["Content-Security-Policy"] = "frame-ancestors 'self'"
         return response
 
     return guard

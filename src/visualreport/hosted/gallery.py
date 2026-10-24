@@ -2,7 +2,7 @@
 
 from urllib.parse import quote
 
-from .. import comments, folders
+from .. import folders
 from ..gallery.catalog import Entry
 from ..gallery.index import render
 from .reports import Report
@@ -12,6 +12,7 @@ from .service import ReportService
 def gallery_entry(report: Report) -> Entry:
     return Entry(
         href="/" + quote(report.page_name, safe=""),
+        preview="/previews/" + quote(report.page_name, safe=""),
         document_id=report.document_id,
         kind=report.document_id.split("-")[0],
         title=report.title,
@@ -21,7 +22,6 @@ def gallery_entry(report: Report) -> Entry:
         date=report.date,
         modified=0,
         open_comments=len(report.threads.open_threads),
-        awaiting_agent=len(report.threads.awaiting(comments.AuthorKind.AGENT)),
     )
 
 

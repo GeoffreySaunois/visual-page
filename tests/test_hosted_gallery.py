@@ -34,6 +34,8 @@ def test_dated_versions_keep_distinct_links_in_nested_gallery():
     page = render([gallery_entry(version) for version in versions])
     assert 'href="/report-demo-2026-09-20.html"' in page
     assert 'href="/report-demo-2026-09-21.html"' in page
+    assert 'data-preview="/previews/report-demo-2026-09-20.html"' in page
+    assert 'data-preview="/previews/report-demo-2026-09-21.html"' in page
     assert 'data-path="swaap/gym/lab"' in page
     assert "Swaap › Gym › Gym Lab" in page
     assert "2 pages" in page

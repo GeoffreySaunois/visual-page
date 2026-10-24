@@ -345,6 +345,8 @@ main { width: 100%; max-width: var(--maxw); min-width: 0; }
   font-size: var(--t-title); font-weight: 600; letter-spacing: -.01em;
 }
 .brand-link .icon { color: var(--accent); }
+/* The archive's mark, the favicon's two bars, fronts the brand row. */
+.brand-mark { width: 20px; height: 20px; flex: none; }
 .brand-link:hover { background: var(--hover); }
 .brand-link:focus-visible, .rail-link:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
 .sidebar-collapse { color: var(--muted); }
@@ -493,7 +495,12 @@ main { width: 100%; max-width: var(--maxw); min-width: 0; }
 .reader-crumbs a:hover { color: var(--ink); text-decoration: underline; }
 .reader-crumbs a:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
 .reader-crumbs .crumb-separator { width: 12px; height: 12px; color: var(--faint); stroke-width: 2.6; }
-.reader-crumbs span { overflow: hidden; text-overflow: ellipsis; }
+.reader-crumbs a, .reader-crumbs span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.reader-crumbs a:last-child, .reader-crumbs span:last-child { flex: 0 1 auto; }
+.reader-crumbs a:not(:last-child) { flex: 0 0 auto; max-width: 16em; }
+/* Lab's back arrow, left of the trail: up to the gallery folder the reader
+   came from, so a page is never a dead end on a phone where the trail hides. */
+.back-to-folder { margin-left: -6px; color: var(--muted); }
 .reader-heading {
   margin: 0;
   color: var(--ink);

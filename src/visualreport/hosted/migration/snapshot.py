@@ -21,7 +21,8 @@ def digest(data: bytes) -> str:
 def include(path: Path) -> bool:
     return (
         path.as_posix() != "index.html"
-        and path.parts[0] != "logs"
+        # Derived from the pages, as the gallery is: the service cuts its own.
+        and path.parts[0] not in {"logs", "previews"}
         and path.name not in {".server.json", ".tunnel.json", ".DS_Store"}
         and path.suffix != ".lock"
     )

@@ -48,6 +48,8 @@ def test_the_gallery_shelves_a_page_in_its_folder_and_the_tagless_ones_apart(
 
     gallery.rebuild(archive)
     index = archive.index.read_text(encoding="utf-8")
+    # The directories, past the sidebar's tree that names the same folders.
+    index = index[index.index('<div id="archive">') :]
 
     gym = index.index('data-path="swaap/gym"')
     filed = index.index("Une page de test")
