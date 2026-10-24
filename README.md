@@ -141,6 +141,10 @@ decorator, not rewriting the body again.
   menus; the reading column re-declares the navy tokens for itself (`charte.css`),
   so every content block, the lightbox, and the colours charts and diagrams read
   from a probe inside `main` stay on the document canvas, as in Lab.
+- **A new thread is written at its passage, a reply in the panel.** Selecting text
+  (or a figure's Commenter) opens Gym Lab's floating composer right there
+  (`scripts/selection-actions.js`); the Comments panel lists threads and answers
+  them, and does not open on a new comment.
 - **A comment is never dropped.** If the quoted words were rewritten it *drifts*;
   if the block disappeared it is *orphaned*. Both stay visible and say so.
 - **Two writers, one hosted store.** Browser and CLI mutations use authenticated
